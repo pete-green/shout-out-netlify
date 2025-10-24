@@ -1,35 +1,48 @@
-import { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import Home from './pages/Home'
+import Salespeople from './pages/Salespeople'
 
 function App() {
-  const [status, setStatus] = useState<string>('Loading...')
-
-  useEffect(() => {
-    // Simple health check
-    setStatus('Shout Out - Sales Celebration System')
-  }, [])
-
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      backgroundColor: '#0f172a',
-      color: '#f1f5f9'
-    }}>
-      <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉 Shout Out</h1>
-      <p style={{ fontSize: '1.5rem', color: '#94a3b8' }}>{status}</p>
-      <div style={{ marginTop: '2rem', textAlign: 'center', maxWidth: '600px' }}>
-        <p style={{ color: '#cbd5e1' }}>
-          Sales celebration system powered by ServiceTitan API integration.
-        </p>
-        <p style={{ color: '#64748b', marginTop: '1rem', fontSize: '0.875rem' }}>
-          Dashboard coming soon...
-        </p>
+    <Router>
+      <div style={{
+        minHeight: '100vh',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        backgroundColor: '#0f172a',
+        color: '#f1f5f9'
+      }}>
+        {/* Navigation */}
+        <nav style={{
+          backgroundColor: '#1e293b',
+          padding: '1rem 2rem',
+          borderBottom: '1px solid #334155'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            maxWidth: '1200px',
+            margin: '0 auto'
+          }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>🎉 Shout Out</h1>
+            <div style={{ display: 'flex', gap: '2rem' }}>
+              <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '1rem' }}>
+                Home
+              </Link>
+              <Link to="/salespeople" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '1rem' }}>
+                Salespeople
+              </Link>
+            </div>
+          </div>
+        </nav>
+
+        {/* Routes */}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/salespeople" element={<Salespeople />} />
+        </Routes>
       </div>
-    </div>
+    </Router>
   )
 }
 

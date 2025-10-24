@@ -96,3 +96,16 @@ export const BIG_SALE_THRESHOLD = 700;
 
 // TGL detection criteria
 export const TGL_OPTION_NAME = "Option C - System Update";
+
+// Business Units for salespeople
+export const BUSINESS_UNITS = [
+  'Plumbing Service',
+  'Plumbing Install',
+  'HVAC Service',
+  'HVAC Install',
+  'Electrical Service',
+  'Electrical Install',
+  'Inside Sales',
+] as const;
+
+export type BusinessUnit = typeof BUSINESS_UNITS[number];

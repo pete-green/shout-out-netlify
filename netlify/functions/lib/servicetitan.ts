@@ -202,3 +202,34 @@ export async function getCustomer(customerId: number): Promise<string> {
     return `Customer #${customerId}`;
   }
 }
+
+/**
+ * List all technicians from ServiceTitan
+ * @param page Page number for pagination (default: 1)
+ * @param pageSize Number of results per page (default: 100)
+ * @returns Array of technician objects
+ */
+export async function listTechnicians(page = 1, pageSize = 100) {
+  const bearerToken = await getServiceTitanToken();
+  const url = `${ST_CONFIG.baseUrl}/settings/v2/tenant/${ST_CONFIG.tenantId}/technicians?page=${page}&pageSize=${pageSize}`;
+
+  console.log(`Fetching technicians (page ${page}, pageSize ${pageSize})...`);
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${bearerToken}`,
+      'ST-App-Key': ST_CONFIG.applicationKey,
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Service Titan API Error:', errorText);
+    throw new Error(`Failed to fetch technicians: ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.data || [];
+}

@@ -13,3 +13,8 @@
 
 [functions]
   node_bundler = "esbuild"
+
+# Scheduled function: Sync salespeople daily at 2 AM UTC
+[[functions]]
+  path = "sync-salespeople"
+  schedule = "0 2 * * *"
