@@ -16,6 +16,8 @@
 
 # Scheduled functions
 # poll-sales: Polls ServiceTitan API every 5 minutes for new sales
+# To change interval: Edit the schedule below and redeploy the application
+# Format: */X * * * * where X is minutes (e.g., */5 for 5 minutes, */10 for 10 minutes)
 [functions."poll-sales"]
   schedule = "*/5 * * * *"
 

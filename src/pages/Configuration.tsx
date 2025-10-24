@@ -60,6 +60,9 @@ interface PollStatus {
 }
 
 export default function Configuration() {
+  // Polling interval is hardcoded to match netlify.toml schedule
+  const POLLING_INTERVAL_MINUTES = 5;
+
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,8 +96,7 @@ export default function Configuration() {
   const [pollStatus, setPollStatus] = useState<PollStatus | null>(null);
   const [togglingPolling, setTogglingPolling] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [pollingInterval, setPollingInterval] = useState<number>(5);
-  const [savingInterval, setSavingInterval] = useState(false);
+  const [triggeringPoll, setTriggeringPoll] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -146,7 +148,6 @@ export default function Configuration() {
 
       setWebhooks(webhooksData);
       setSettingsForm(settingsData);
-      setPollingInterval(settingsData.polling_interval_minutes || 5);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -334,27 +335,27 @@ export default function Configuration() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
-  async function handleSaveInterval() {
-    setSavingInterval(true);
+  async function triggerManualPoll() {
+    if (!confirm('Trigger a poll now? This will check ServiceTitan for new sales immediately.')) {
+      return;
+    }
+
+    setTriggeringPoll(true);
     try {
-      const response = await fetch(`${API_URL}/settings`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ polling_interval_minutes: pollingInterval }),
+      const response = await fetch(`${API_URL}/poll-sales`, {
+        method: 'POST',
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save polling interval');
+      if (response.ok) {
+        alert('Poll triggered successfully! Check the logs table for results.');
+        await fetchPollStatus(); // Refresh to show new log
+      } else {
+        throw new Error('Failed to trigger poll');
       }
-
-      alert('Polling interval updated! Changes will take effect after the current polling cycle completes.');
-      await fetchPollStatus();
     } catch (err: any) {
       alert(`Error: ${err.message}`);
     } finally {
-      setSavingInterval(false);
+      setTriggeringPoll(false);
     }
   }
 
@@ -723,7 +724,10 @@ export default function Configuration() {
                     </span>
                   </div>
                   <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
-                    Polling every {pollStatus.polling_interval_minutes} minutes
+                    Polling every {POLLING_INTERVAL_MINUTES} minutes
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                    (configured at deployment)
                   </div>
                   {countdown !== null && pollStatus.polling_enabled && (
                     <div
@@ -759,36 +763,19 @@ export default function Configuration() {
               </div>
             </div>
 
-            {/* Polling Interval Settings Card */}
-            <div style={{ ...cardStyle, marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                <div style={{ flex: '1', minWidth: '200px' }}>
-                  <label style={labelStyle}>Polling Interval (minutes)</label>
-                  <input
-                    type="number"
-                    style={{ ...inputStyle, marginBottom: 0 }}
-                    value={pollingInterval}
-                    onChange={(e) => setPollingInterval(parseInt(e.target.value) || 1)}
-                    min="1"
-                    max="60"
-                  />
-                </div>
-                <button
-                  style={{
-                    ...buttonStyle,
-                    alignSelf: 'flex-end',
-                    padding: '0.75rem 1.5rem',
-                  }}
-                  onClick={handleSaveInterval}
-                  disabled={savingInterval}
-                >
-                  {savingInterval ? 'Saving...' : 'Update Interval'}
-                </button>
-              </div>
-              <div style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.75rem' }}>
-                Changes take effect after the current polling cycle completes. The interval determines how often the system checks for new sales.
-              </div>
-            </div>
+            {/* Manual Trigger Button */}
+            <button
+              style={{
+                ...buttonStyle,
+                width: '100%',
+                marginBottom: '1.5rem',
+                backgroundColor: '#6366f1',
+              }}
+              onClick={triggerManualPoll}
+              disabled={triggeringPoll || !pollStatus?.polling_enabled}
+            >
+              {triggeringPoll ? '⏳ Polling...' : '🔄 Poll Now'}
+            </button>
 
             {/* Stats Cards */}
             <div
