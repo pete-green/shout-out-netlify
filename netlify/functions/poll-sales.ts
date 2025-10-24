@@ -2,9 +2,6 @@ import { Handler } from '@netlify/functions';
 import { supabase } from './lib/supabase';
 import { getSoldEstimates, getTechnician, getCustomer } from './lib/servicetitan';
 import {
-  BIG_SALE_MESSAGES,
-  BIG_SALE_GIFS,
-  TGL_GIF_URL,
   BIG_SALE_THRESHOLD,
   TGL_OPTION_NAME,
 } from './lib/constants';
@@ -39,41 +36,68 @@ function formatCustomerName(rawName: string): string {
 }
 
 /**
- * Generate TGL or Big Sale message
+ * Generate TGL or Big Sale message from database
  */
-function generateMessage(
+async function generateMessage(
   salesperson: string,
   amount: number,
   customerName: string,
   isTGL: boolean
-): { message: string; gifUrl: string; type: 'tgl' | 'big_sale' } {
-  if (isTGL) {
-    const message = `${salesperson} just generated a TGL at ${customerName}'s house! Awesome work ${salesperson}!!!`;
+): Promise<{ message: string; gifUrl: string; type: 'tgl' | 'big_sale' }> {
+  const category = isTGL ? 'tgl' : 'big_sale';
+  const tag = isTGL ? 'tgl' : 'big_sale';
+
+  // Fetch active messages for this category
+  const { data: messages } = await supabase
+    .from('celebration_messages')
+    .select('message_text')
+    .eq('category', category)
+    .eq('is_active', true);
+
+  // Fetch active GIFs for this tag
+  const { data: gifs } = await supabase
+    .from('celebration_gifs')
+    .select('url')
+    .contains('tags', [tag])
+    .eq('is_active', true);
+
+  // Fallback in case no messages/GIFs found
+  if (!messages || messages.length === 0) {
+    console.warn(`No active ${category} messages found, using fallback`);
+    const fallbackMessage = isTGL
+      ? `${salesperson} just generated a TGL at ${customerName}'s house! Awesome work ${salesperson}!!!`
+      : `🎉 ${salesperson} just closed a sale of $${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}! Amazing work!`;
     return {
-      message,
-      gifUrl: TGL_GIF_URL,
-      type: 'tgl',
+      message: fallbackMessage,
+      gifUrl: gifs && gifs.length > 0 ? gifs[0].url : '',
+      type: category,
     };
   }
 
-  // Big Sale: Random message template
-  const randomIndex = Math.floor(Math.random() * BIG_SALE_MESSAGES.length);
-  const template = BIG_SALE_MESSAGES[randomIndex];
+  if (!gifs || gifs.length === 0) {
+    console.warn(`No active ${tag} GIFs found`);
+  }
+
+  // Select random message and GIF
+  const randomMessageIndex = Math.floor(Math.random() * messages.length);
+  const template = messages[randomMessageIndex].message_text;
+
   const amountFormatted = amount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 
-  const message = template.replace(/{name}/g, salesperson).replace(/{amount}/g, amountFormatted);
+  const message = template
+    .replace(/{name}/g, salesperson)
+    .replace(/{amount}/g, amountFormatted);
 
-  // Random GIF
-  const gifIndex = Math.floor(Math.random() * BIG_SALE_GIFS.length);
-  const gifUrl = BIG_SALE_GIFS[gifIndex];
+  const randomGifIndex = Math.floor(Math.random() * (gifs?.length || 0));
+  const gifUrl = gifs && gifs.length > 0 ? gifs[randomGifIndex].url : '';
 
   return {
     message,
     gifUrl,
-    type: 'big_sale',
+    type: category,
   };
 }
 
@@ -167,7 +191,7 @@ export const handler: Handler = async (_event, _context) => {
         }
 
         // Generate message
-        const { message, gifUrl, type } = generateMessage(
+        const { message, gifUrl, type } = await generateMessage(
           salesperson,
           amount,
           customerName,

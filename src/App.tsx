@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Home from './pages/Home'
 import People from './pages/People'
+import Messages from './pages/Messages'
+import GIFs from './pages/GIFs'
 
 function App() {
   const [unassignedCount, setUnassignedCount] = useState(0)
@@ -86,6 +88,12 @@ function App() {
                   </span>
                 )}
               </Link>
+              <Link to="/messages" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '1rem' }}>
+                Messages
+              </Link>
+              <Link to="/gifs" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '1rem' }}>
+                GIFs
+              </Link>
             </div>
           </div>
         </nav>
@@ -94,6 +102,8 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/people" element={<People />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/gifs" element={<GIFs />} />
         </Routes>
 
         {/* Add bounce animation */}
