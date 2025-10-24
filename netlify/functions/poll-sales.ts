@@ -199,7 +199,7 @@ export const handler: Handler = async (_event, _context) => {
     const { data: settings, error: settingsError } = await supabase
       .from('app_state')
       .select('key, value')
-      .in('key', ['big_sale_threshold', 'tgl_option_name', 'last_poll_timestamp', 'recently_processed_ids']);
+      .in('key', ['polling_enabled', 'big_sale_threshold', 'tgl_option_name', 'last_poll_timestamp', 'recently_processed_ids']);
 
     if (settingsError) {
       throw new Error(`Failed to read settings: ${settingsError.message}`);
@@ -209,6 +209,32 @@ export const handler: Handler = async (_event, _context) => {
     (settings || []).forEach((s) => {
       settingsMap[s.key] = s.value;
     });
+
+    // Check if polling is enabled
+    const pollingEnabled = settingsMap.polling_enabled === true || settingsMap.polling_enabled === 'true';
+
+    if (!pollingEnabled) {
+      console.log('⏸️  Polling is disabled, skipping...');
+
+      const duration = Date.now() - startTime;
+      await supabase.from('poll_logs').insert({
+        status: 'skipped',
+        estimates_found: 0,
+        estimates_processed: 0,
+        duration_ms: duration,
+        error_message: 'Polling is disabled',
+      });
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          skipped: true,
+          message: 'Polling is disabled',
+          durationMs: duration,
+        }),
+      };
+    }
 
     const BIG_SALE_THRESHOLD = parseInt(settingsMap.big_sale_threshold || '700', 10);
     const TGL_OPTION_NAME = settingsMap.tgl_option_name

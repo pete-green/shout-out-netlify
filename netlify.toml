@@ -14,4 +14,9 @@
 [functions]
   node_bundler = "esbuild"
 
-# Scheduled function: Sync salespeople daily at 2 AM UTC (configured via Netlify UI)
+# Scheduled functions
+# poll-sales: Polls ServiceTitan API every 5 minutes for new sales
+[functions."poll-sales"]
+  schedule = "*/5 * * * *"
+
+# sync-salespeople: Syncs salespeople daily at 2 AM UTC (configured via Netlify UI)

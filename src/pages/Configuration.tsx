@@ -32,6 +32,33 @@ interface WebhookLog {
   sent_at: string;
 }
 
+interface PollLog {
+  id: number;
+  status: string;
+  estimates_found: number;
+  estimates_processed: number;
+  duration_ms: number;
+  error_message: string | null;
+  created_at: string;
+}
+
+interface PollStatus {
+  polling_enabled: boolean;
+  polling_interval_minutes: number;
+  last_poll_timestamp: string | null;
+  next_poll_estimate: string | null;
+  logs: PollLog[];
+  stats: {
+    total_polls_24h: number;
+    successful_polls_24h: number;
+    failed_polls_24h: number;
+    skipped_polls_24h: number;
+    total_estimates_24h: number;
+    average_duration_ms: number;
+    success_rate_24h: number;
+  };
+}
+
 export default function Configuration() {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,8 +89,21 @@ export default function Configuration() {
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Polling status state
+  const [pollStatus, setPollStatus] = useState<PollStatus | null>(null);
+  const [togglingPolling, setTogglingPolling] = useState(false);
+
   useEffect(() => {
     fetchData();
+    fetchPollStatus();
+  }, []);
+
+  // Auto-refresh poll status every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchPollStatus();
+    }, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   async function fetchData() {
@@ -213,6 +253,53 @@ export default function Configuration() {
       alert(`Error: ${err.message}`);
     } finally {
       setSavingSettings(false);
+    }
+  }
+
+  // Polling operations
+  async function fetchPollStatus() {
+    try {
+      const response = await fetch(`${API_URL}/poll-status`);
+      if (response.ok) {
+        const data = await response.json();
+        setPollStatus(data);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch poll status:', err);
+    }
+  }
+
+  async function togglePolling() {
+    if (!pollStatus) return;
+
+    const newState = !pollStatus.polling_enabled;
+    const confirmMessage = newState
+      ? 'Are you sure you want to enable polling? The system will start checking for new sales automatically.'
+      : 'Are you sure you want to disable polling? New sales won\'t be detected while polling is off.';
+
+    if (!confirm(confirmMessage)) return;
+
+    setTogglingPolling(true);
+    try {
+      const response = await fetch(`${API_URL}/poll-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ polling_enabled: newState }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to toggle polling');
+      }
+
+      // Refresh status
+      await fetchPollStatus();
+      alert(data.message);
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setTogglingPolling(false);
     }
   }
 
@@ -568,6 +655,212 @@ export default function Configuration() {
         </button>
       </div>
 
+      {/* Polling Monitor Section */}
+      <div style={sectionStyle}>
+        <div style={headerStyle}>
+          <span>Polling Monitor</span>
+        </div>
+
+        {pollStatus ? (
+          <>
+            {/* Status Card */}
+            <div
+              style={{
+                ...cardStyle,
+                backgroundColor: pollStatus.polling_enabled ? '#064e3b' : '#7f1d1d',
+                border: `2px solid ${pollStatus.polling_enabled ? '#10b981' : '#ef4444'}`,
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                    <span
+                      style={{
+                        fontSize: '2rem',
+                        animation: pollStatus.polling_enabled ? 'pulse 2s infinite' : 'none',
+                      }}
+                    >
+                      {pollStatus.polling_enabled ? '🟢' : '🔴'}
+                    </span>
+                    <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#f1f5f9' }}>
+                      Polling {pollStatus.polling_enabled ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+                    Polling every {pollStatus.polling_interval_minutes} minutes
+                  </div>
+                  {pollStatus.last_poll_timestamp && (
+                    <div style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                      Last poll: {new Date(pollStatus.last_poll_timestamp).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={pollStatus.polling_enabled}
+                    onChange={togglePolling}
+                    disabled={togglingPolling}
+                    style={{
+                      width: '3rem',
+                      height: '1.5rem',
+                      cursor: 'pointer',
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Stats Cards */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: '1rem',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div style={cardStyle}>
+                <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Success Rate (24h)</div>
+                <div style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                  {pollStatus.stats.success_rate_24h}%
+                </div>
+              </div>
+              <div style={cardStyle}>
+                <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Total Polls (24h)</div>
+                <div style={{ color: '#f1f5f9', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                  {pollStatus.stats.total_polls_24h}
+                </div>
+              </div>
+              <div style={cardStyle}>
+                <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Estimates Found (24h)</div>
+                <div style={{ color: '#3b82f6', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                  {pollStatus.stats.total_estimates_24h}
+                </div>
+              </div>
+              <div style={cardStyle}>
+                <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Avg Duration</div>
+                <div style={{ color: '#f1f5f9', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                  {pollStatus.stats.average_duration_ms}ms
+                </div>
+              </div>
+              <div style={cardStyle}>
+                <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Failed (24h)</div>
+                <div style={{ color: '#ef4444', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                  {pollStatus.stats.failed_polls_24h}
+                </div>
+              </div>
+              <div style={cardStyle}>
+                <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Skipped (24h)</div>
+                <div style={{ color: '#64748b', fontSize: '1.5rem', fontWeight: 'bold' }}>
+                  {pollStatus.stats.skipped_polls_24h}
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Logs */}
+            <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ color: '#f1f5f9', fontSize: '1.125rem', fontWeight: '600' }}>
+                Recent Polls
+              </h3>
+              <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                Auto-refreshes every 10 seconds
+              </span>
+            </div>
+
+            {pollStatus.logs.length === 0 ? (
+              <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>
+                No polling logs yet
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={tableStyle}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Time</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>Found</th>
+                      <th style={thStyle}>Processed</th>
+                      <th style={thStyle}>Duration</th>
+                      <th style={thStyle}>Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pollStatus.logs.map((log) => (
+                      <tr key={log.id}>
+                        <td style={tdStyle}>
+                          <div style={{ fontSize: '0.875rem' }}>
+                            {new Date(log.created_at).toLocaleString()}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            {(() => {
+                              const now = Date.now();
+                              const logTime = new Date(log.created_at).getTime();
+                              const diff = Math.floor((now - logTime) / 1000);
+                              if (diff < 60) return `${diff}s ago`;
+                              if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                              return `${Math.floor(diff / 3600)}h ago`;
+                            })()}
+                          </div>
+                        </td>
+                        <td style={tdStyle}>
+                          <span
+                            style={{
+                              ...tagStyle(true),
+                              cursor: 'default',
+                              backgroundColor:
+                                log.status === 'success'
+                                  ? '#065f46'
+                                  : log.status === 'error'
+                                  ? '#7f1d1d'
+                                  : log.status === 'skipped'
+                                  ? '#1e293b'
+                                  : '#334155',
+                              color:
+                                log.status === 'success'
+                                  ? '#10b981'
+                                  : log.status === 'error'
+                                  ? '#ef4444'
+                                  : '#64748b',
+                            }}
+                          >
+                            {log.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={tdStyle}>{log.estimates_found}</td>
+                        <td style={tdStyle}>{log.estimates_processed}</td>
+                        <td style={tdStyle}>{log.duration_ms}ms</td>
+                        <td style={tdStyle}>
+                          {log.error_message ? (
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                color: '#ef4444',
+                                cursor: 'help',
+                              }}
+                              title={log.error_message}
+                            >
+                              {log.error_message.substring(0, 30)}...
+                            </span>
+                          ) : (
+                            <span style={{ color: '#64748b' }}>-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>
+            Loading polling status...
+          </div>
+        )}
+      </div>
+
       {/* Webhook Modal */}
       {showWebhookModal && (
         <div style={modalOverlayStyle} onClick={() => setShowWebhookModal(false)}>
@@ -768,6 +1061,18 @@ export default function Configuration() {
           </div>
         </div>
       )}
+
+      {/* Add pulse animation for polling status indicator */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+      `}</style>
     </div>
   );
 }
