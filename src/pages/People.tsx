@@ -353,6 +353,7 @@ function People() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: '#334155' }}>
+              <th style={{ ...tableHeaderStyle, width: '100px' }}>Photo</th>
               <th
                 onClick={() => handleSort('name')}
                 style={{ ...tableHeaderStyle, cursor: 'pointer', userSelect: 'none' }}
@@ -371,7 +372,7 @@ function People() {
               >
                 Business Unit{renderSortIcon('business_unit')}
               </th>
-              <th style={tableHeaderStyle}>Headshot</th>
+              <th style={tableHeaderStyle}>Headshot URL</th>
               <th
                 onClick={() => handleSort('is_active')}
                 style={{ ...tableHeaderStyle, cursor: 'pointer', userSelect: 'none' }}
@@ -387,6 +388,42 @@ function People() {
 
               return (
                 <tr key={person.id} style={{ borderBottom: '1px solid #334155' }}>
+                  <td style={{ ...tableCellStyle, textAlign: 'center' }}>
+                    {person.headshot_url ? (
+                      <img
+                        src={person.headshot_url}
+                        alt={person.name}
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          objectFit: 'cover',
+                          borderRadius: '50%',
+                          border: '2px solid #475569',
+                        }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="60" height="60"%3E%3Ccircle cx="30" cy="30" r="30" fill="%23334155"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%2394a3b8" font-size="24"%3E' + person.name.charAt(0).toUpperCase() + '%3C/text%3E%3C/svg%3E'
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: '60px',
+                          height: '60px',
+                          borderRadius: '50%',
+                          backgroundColor: '#334155',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.5rem',
+                          fontWeight: 'bold',
+                          color: '#94a3b8',
+                          margin: '0 auto',
+                        }}
+                      >
+                        {person.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </td>
                   <td style={tableCellStyle}>
                     <div>
                       <div style={{ fontWeight: '500' }}>{person.name}</div>
