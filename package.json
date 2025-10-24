@@ -1,0 +1,41 @@
+{
+  "name": "shout-out-netlify",
+  "version": "1.0.0",
+  "description": "Sales celebration system that polls ServiceTitan API for sold estimates and posts celebrations to Google Chat.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pete-green/shout-out-netlify.git"
+  },
+  "keywords": ["servicetitan", "sales", "celebration", "netlify"],
+  "author": "Pete Green",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pete-green/shout-out-netlify/issues"
+  },
+  "homepage": "https://github.com/pete-green/shout-out-netlify#readme",
+  "dependencies": {
+    "@netlify/functions": "^2.8.2",
+    "@supabase/supabase-js": "^2.47.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
+  }
+}

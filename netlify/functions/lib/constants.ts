@@ -1,0 +1,98 @@
+// Message Templates for Big Sales
+export const BIG_SALE_MESSAGES = [
+  "🌟 Huge applause for {name}! He's just clinched a sale of ${amount}! Phenomenal job, {name}—your efforts are truly inspiring. Let's keep the momentum going! 🚀",
+  "🎉 {name} has done it again, locking in a whopping ${amount} sale. Stellar performance, {name}! You're setting the bar high. Onward and upward! 💪",
+  "👏 Hats off to {name}! Another ${amount} sale is in the books, thanks to him. Incredible work, {name}. Your dedication shines through. Here's to many more! 🥂",
+  "💥 Boom! {name} has just landed a sale of ${amount}! Fantastic effort, {name}. You're a true asset to the team. Let's keep the wins coming!",
+  "🚀 Kudos to {name} for soaring high with a ${amount} sale! Your hard work and perseverance are paying off. Great job, {name}. The sky's the limit! 🌟",
+  "A round of applause for {name}! He's secured a sale worth ${amount}. Outstanding achievement, {name}! You're a shining example for us all.",
+  "🔥 Fire alert: {name} is on a roll, pulling in a sale of ${amount}! Excellent work, {name}. You're burning bright with talent. More power to you! 💪",
+  "🎖️ Saluting {name} for a triumphant ${amount} sale! Your excellence has not gone unnoticed. Remarkable work, {name}. Forward march! 🚀",
+  "🛠️ Master craftsman alert: {name} has skillfully secured a ${amount} sale! Masterful work, {name}. Your expertise is a game-changer. Hats off to you! 👷‍♂️",
+  "🍀 Luck has nothing to do with it: {name} just nailed a ${amount} sale through sheer skill! Lucky us to have you, {name}. Fantastic job!",
+  "👍 Thumbs up for {name}! He's just clinched a ${amount} sale. Your effort is top-notch, {name}. You've got the golden touch. Keep leading the way! 🌟",
+  "🥇 Gold medal performance by {name} with a ${amount} sale! You're racing ahead with excellence, {name}. Cheers to your continued success! 🏅",
+  "🔑 Key player alert: {name} has unlocked a monumental sale of ${amount}! Your key contributions are unlocking doors to our success. Outstanding maneuver, {name}. The treasure chest awaits us! 🗝️",
+  "🌪️ Tornado Alert: {name} just swept through with a whirlwind ${amount} sale! Incredible force, {name}. Let's keep whipping up success! 🌀",
+  "🎯 Bullseye achievement by {name} with a direct hit sale of ${amount}! Your precision and focus are on target. Ace work, {name}. Aiming higher with every shot! 🏹",
+  "🏆 Champion's stride: {name} crossed the finish line with a triumphant ${amount} sale! Your winning spirit is setting records. Victorious work, {name}. On to the next trophy! 🥇",
+  "⚡ Lightning strike: {name} electrified the board with a shocking ${amount} sale! Your dynamic energy is sparking greatness. Electrifying work, {name}. Keep the current flowing! ⚡",
+  "🚀 Skyrocket success: {name} has launched us forward with a ${amount} sale reaching the stars! Your propulsion is taking us to new heights. Stellar launch, {name}. To infinity and beyond! 🌠",
+  "🎥 Blockbuster hit: {name} directed a chart-topping sale of ${amount}! Your cinematic approach is premiering our success story. Star performance, {name}. Let's roll out the red carpet for more! 🍿",
+  "💼 Professional par excellence: {name} has executed a ${amount} sale with finesse! Impeccable work, {name}. You're redefining excellence. Keep breaking barriers! 🏁"
+];
+
+// TGL-specific GIF
+export const TGL_GIF_URL = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExbGFzYjNpd2d0MmZyaHo1NHM2YXBpbXNzOXBveHE3dWJ4NWh1NjA1cyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Dpzwv3KQEpt3y57gCh/giphy.gif";
+
+// Big Sale GIFs (randomly selected)
+export const BIG_SALE_GIFS = [
+  "https://c.tenor.com/2I1l3ZkEQLsAAAAM/yes-dance.gif",
+  "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExaHoxeDFseHozdWRwcXQ3bHFic3ozbjJoNHVicDFuYjk0NXZ3OTFsaSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o6Mbtz1qpLUVzl648/giphy.gif",
+  "https://i.pinimg.com/originals/b8/8e/cc/b88ecc3979b27fb9145f6568ed3b885f.gif",
+  "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWdtcnp0MGluczA4d2swZ3l5NnRjdmtsMHNhYzE3bjJqemk0MmU2eSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3osxY3V7tDf01wyFNK/giphy.gif",
+  "https://gifdb.com/images/high/jim-carrey-funny-celebration-hov0rt8ooyeddutg.gif",
+  "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExN2hlYWthNDBoejNibDN4amxldnhobDV5YWI5emgycDIzaDl3YnN5cCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/L4Bb7zCaP8FB5C769T/giphy.gif",
+  "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZXY0aXRsam8wcGVvcjl3N3Jyb3R1amFyd3BjOWxkZGw1c2NjbHJzayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26u6dTP6p4y0iyBIQ/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHZ6eWdvMGgxNXNlcmFhMzRranZsODd1a3RjbWtyMm5yZ3h4bWMzcyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/xT5LMxh5raAPj0YGIM/giphy.gif",
+  "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExNngxdjR6aTViZXJyMmE3NmE2bTZpeGY4bHU5NDRzeXd0aGw3OWpsciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/kUcWTx2XSKEfK/giphy.gif",
+  "https://reactiongifs.me/wp-content/uploads/2020/10/Holy-Shit-Keegan-Michael-Key.gif",
+  "https://gifdb.com/images/high/energetic-leonardo-dicaprio-celebration-dance-0dz1c60cw9lemqiq.gif",
+  "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExNDg1YmZnamU2cW1vbHp2bmNmaWQxaXhsNG54anNlOWh4aXpod2N5aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ixLKuK0reUs3m/giphy.gif",
+  "https://i.pinimg.com/originals/bf/ff/a3/bfffa3ff95942a26160374a1866c393c.gif",
+  "https://media2.giphy.com/media/lMameLIF8voLu8HxWV/giphy.gif?cid=6c09b952liaee9qewfaanrn2cexj33z504111objooac1jhj&ep=v1_internal_gif_by_id&rid=giphy.gif&ct=g",
+  "https://media4.giphy.com/media/aNYkTKraGx31Waw87T/200w.gif?cid=6c09b952sedbk7t01d6httbhcxgawelupnr63nvl7bmz8v1t&ep=v1_gifs_search&rid=200w.gif&ct=g",
+  "https://media0.giphy.com/media/G96zgIcQn1L2xpmdxi/200w.gif?cid=6c09b9526gpyprundg8zpwposx4tntmbs7bv8xczutlxrg6o&ep=v1_videos_search&rid=200w.gif&ct=v",
+  "https://media4.giphy.com/media/qqJiWx3tggnExIN2re/200w.gif?cid=6c09b952y6m5dfjh1358qo6oa8bwl6t5s9szj7j1st3hyek5&ep=v1_gifs_search&rid=200w.gif&ct=g",
+  "https://i.makeagif.com/media/12-20-2017/rnbXqD.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExdDV3cm81cjE4c214eXFka2V1dmdkbmJzN2N0NnNvd252dXAxMmZ2ciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/oU3FogKx589e8/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExeGJ3eGYycG9lbThiNG9kd2huZG1mb3RycTkzMTRuZG5sdXVhc2EzcSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/hU5pTGzUGP6WUlHhBe/giphy.gif",
+  "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExenB4N2RmdzNpMm5hd3YxMm4xYnJjeDA4OHQwcXh3MGFtYWl3c3B1ayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Af7ap9r7NzJJe/giphy.gif",
+  "https://media1.tenor.com/m/m-cJlcMkULkAAAAC/denzel-washington-training-day.gif",
+  "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExcTVyMjdta2Z1c3B5amxvdGUydHhxdTdodG9jb29pZ2RjNW1ubnVpZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26ufmYaTU5jqtkmuQ/giphy.gif",
+  "https://media.tenor.com/mqAXKprU0qEAAAAM/seann-william-scott-yes.gif",
+  "https://i.makeagif.com/media/12-07-2020/7jpaxO.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExbmJ2a3F5OWh4Ym5xdGhoNnZ2MGsyaGlyaXg2cGN3dHhvNXI3aHFtMyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Jlt69Ka6SwtH2/giphy.gif",
+  "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzhicThicG81ZDQwZjZ4cGJnNzV3cnZycXFvOGs0aTg2Z3dtdjJjcyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ej0Ay8fH6Y1Wg/giphy.gif",
+  "https://www.icegif.com/wp-content/uploads/2023/03/icegif-1117.gif",
+  "https://i.gifer.com/origin/0b/0b0470150e3e1114d7bbce9970db2ac0_w200.gif",
+  "https://mrwgifs.com/wp-content/uploads/2013/10/Stephen-Colbert-Does-a-Cheezy-Celebration-Dance-On-The-Colbert-Report.gif",
+  "https://media3.giphy.com/media/mbhseRYedlG5W/giphy.gif?cid=6c09b952bsbhddma8r8ot5124kfoiqz3x283fmfcbrwubf0n&ep=v1_gifs_search&rid=giphy.gif&ct=g",
+  "https://media1.tenor.com/m/0Sh7u1lRsyEAAAAC/wedding-crasher-hro.gif",
+  "https://media1.giphy.com/media/l3fZXtuROC8KeW5Yk/200.gif?cid=6c09b952zljb4wa7dg7y2qpua3x9109epjxouw6sve6nb65y&ep=v1_internal_gif_by_id&rid=200.gif&ct=g",
+  "https://media3.giphy.com/media/9UdtW61KfA5dWBnfB6/200w.gif?cid=6c09b95257sjspkjz7jeoqbwvwht1hdcngh9avqss0zfcf56&ep=v1_videos_search&rid=200w.gif&ct=v",
+  "https://media1.giphy.com/media/t3sZxY5zS5B0z5zMIz/200w.gif?cid=6c09b9522euynaaxsv352mhrq9wv56b28omcl5gadyiab0uj&ep=v1_gifs_search&rid=200w.gif&ct=g",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXN4aDYxMm95dXZlcDlqdWt3Ym9qYmhuMmJsMHlxZjdmaXE5OTdtMyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/APcFiiTrG0x2/giphy.gif",
+  "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExdzl6MDRyNzVhM2poM3kxMHZiZTJiODk0NXJmcDc2MmFta2Vqc25tcCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/yUbMqEVcIXS24/giphy.gif",
+  "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExbm51ajM2YjRhMHdmenF6dWx5a3RkMWNxZzZibzJnYWsxa3QxbzJzeSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/z1Z1ZeNBAv1cI/giphy.gif",
+  "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExNWVnd3FxOWtlc293bDN5eTRtc2VmOGNlamFzYjZlbjViM2N2b3VuNyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/xTcnSP3760y1ZhcG4g/giphy.gif",
+  "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDg1M2owNWYyc2htazZ1YmdqZW05cWd2ZmwwaHdjMXJ1amt2ZmF2OCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/OPl1CmAfplB1C/giphy.gif",
+  "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdjNrbXJoaHppaWZtYjU4dTF4bHlkMmgzNm53ZW5zam5hdzM1NjBhaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l1J9JtMnJWjWaFXy0/giphy.gif",
+  "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZGxoODRsY2o2cnN4MW9ldzF1dTN5NWx0dno4MzVkdDFhMnNjd2dkZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/rQcyC6ztVrjZm/giphy.gif",
+  "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExOW5tMjVpaXBqenNsbWphZm9raXNnYWV5bGJucmxqaTdhcG8xd3draiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKsBQRJbUJ5W2eQ/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExZmd5eTh0YTJvanRzajd6ZG80NmI2eXQzYTZhY3ZpOG1nMTVmZ2JxbyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/110F1JFzWKtiA8/giphy.gif",
+  "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExcXBuNDFoOXp1ZG0wY3g0dHB5Z3gxMmh1d3hmenMxMmpneTZ5dTF6NSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/OUe9W1Y5lUCgo/giphy.gif",
+  "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExcWoxcHVqaHhtbnU3ZzB3ZHNoMTZraGRqdWQxOGhsMmM4cTZqc3E4ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/s2qXK8wAvkHTO/giphy.gif",
+  "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdTdqeGd0azk0bmhpYXZldzR5azF5cnpmd3N3dHFsZHJqMXQzaGxhaSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dkGhBWE3SyzXW/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExeWppZTQzbG84dGI5cnlxMTR2MTVudzlidzI3eWJjYmcxbGRqaGx0aCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/rmi45iyhIPuRG/giphy.gif",
+  "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExMzV0M2M2OHgzNm14ajd3ZGxzbWVienQ5ZGVoNHN3OWI2Nzh6NnRqYSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/q4sdF9tchap6E/giphy.gif",
+  "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExOWpjM3g0OG80OXYyMXU1bjVzdm1vMnZyMjR0dTJ2cHVxNnY5cDg1bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cIbyhEK4UscjvE5ohe/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExNG15N2Z1czJkaG9rcmptYjR3djAwZ2hhOWw1Y3plazdod2h5MWRpaiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Y6EiBooGQFjwY/giphy.gif",
+  "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExeXY0aXRsam8wcGVvZDk1NnBzY2llcnFoMjY2bGtuNHbyZ2tzajZ1dSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ov9jTHzCQxr1kfsM8/giphy.gif",
+  "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExMGhxdGo0cGp6eDNxZWloOWxxZzcybGxqdmtzeWZzMnZiajR4cjB3bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/9peA0XjzlKz72/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2k2aWFwY3U5ZWNwOWp4YXUxZTFmeHQ3ZnNuejZhYTN1MHNnY2libSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/gjf2h1XoJoJ3nSm8H5/giphy.gif",
+  "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExOGk4bzZlM2JqMWs2ZmxkbzN6ZTYzYXZsMTViN3BlMnV6YWlhdmlybSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l4EoVhPVdGt92H8wU/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExODdxM242NGFzMzl3d3B2MnowcmFyeWpvaTFyNHRndTM4aGs1ZXM5NSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3fjW2QCKgRxM4yDafN/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExN2tmZTM4MTdwcmFmZmV2bXRldjU5cDVmamFkdWJxc2FoNmx4enZpOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/JVRbuyKizlwYM/giphy.gif",
+  "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMmlzdzNrZHN6MjRtNWd6a2EyczdxcnFmZmFiY2ZzeXIwY2d2Y3p4dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/RIqrLVoUNLoSerryQi/giphy.gif",
+  "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMDlucHN4Nmp1cW01d3h3eHlxYTd2djEzeXl5ejRlc2xhczQzcnFmdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/TKQxOhiW8diyapDiYg/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExazc3YXZjcHNqYzBhMG5mdzEwdmM1dGpwb2FnNXFjczI5aTkxdG04ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/UAmdO9mDnFJCllRisF/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExejEzaHN3NGh6MmgzOXdia2hhaW9zcGN0aHp1ajh0NWkzY2cwYTU5aSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/a0h7sAqON67nO/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExZDN4eHJqYWlmamVnNng1NHhyY2U4aGdsZ2ZuZTR3MWJhajFhcDN4byZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Y22nb2QXvUmv0lZhkb/giphy.gif"
+];
+
+// Big Sale threshold
+export const BIG_SALE_THRESHOLD = 700;
+
+// TGL detection criteria
+export const TGL_OPTION_NAME = "Option C - System Update";
