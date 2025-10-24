@@ -1,10 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { supabase } from './lib/supabase';
 import { getSoldEstimates, getTechnician, getCustomer } from './lib/servicetitan';
-import {
-  BIG_SALE_THRESHOLD,
-  TGL_OPTION_NAME,
-} from './lib/constants';
 
 interface EstimateItem {
   skuName: string;
@@ -33,6 +29,95 @@ function formatCustomerName(rawName: string): string {
     }
   }
   return rawName;
+}
+
+/**
+ * Send celebration message to webhooks
+ */
+async function sendToWebhooks(
+  message: string,
+  gifUrl: string,
+  celebrationType: 'tgl' | 'big_sale',
+  estimateId: string
+) {
+  // Fetch active webhooks that match this celebration type
+  const { data: webhooks } = await supabase
+    .from('webhooks')
+    .select('id, url')
+    .contains('tags', [celebrationType])
+    .eq('is_active', true);
+
+  if (!webhooks || webhooks.length === 0) {
+    console.log(`⚠️ No active webhooks configured for ${celebrationType}`);
+    return;
+  }
+
+  // Send to each webhook
+  for (const webhook of webhooks) {
+    try {
+      const payload = {
+        text: message,
+        cards: [
+          {
+            sections: [
+              {
+                widgets: [
+                  {
+                    image: {
+                      imageUrl: gifUrl,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const response = await fetch(webhook.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        console.log(`✅ Sent ${celebrationType} to webhook ${webhook.id}`);
+
+        // Log successful delivery
+        await supabase.from('webhook_logs').insert({
+          webhook_id: webhook.id,
+          celebration_type: celebrationType,
+          status: 'success',
+          estimate_id: estimateId,
+        });
+      } else {
+        const errorText = await response.text();
+        console.error(`❌ Failed to send to webhook ${webhook.id}: ${response.status}`);
+
+        // Log failed delivery
+        await supabase.from('webhook_logs').insert({
+          webhook_id: webhook.id,
+          celebration_type: celebrationType,
+          status: 'failed',
+          error_message: `HTTP ${response.status}: ${errorText}`,
+          estimate_id: estimateId,
+        });
+      }
+    } catch (error: any) {
+      console.error(`❌ Error sending to webhook ${webhook.id}:`, error.message);
+
+      // Log error
+      await supabase.from('webhook_logs').insert({
+        webhook_id: webhook.id,
+        celebration_type: celebrationType,
+        status: 'failed',
+        error_message: error.message,
+        estimate_id: estimateId,
+      });
+    }
+  }
 }
 
 /**
@@ -110,35 +195,35 @@ export const handler: Handler = async (_event, _context) => {
   console.log('🚀 Starting poll-sales function...');
 
   try {
-    // 1. Read last poll timestamp from app_state
-    const { data: appStateData, error: appStateError } = await supabase
+    // 1. Fetch app settings from database
+    const { data: settings, error: settingsError } = await supabase
       .from('app_state')
-      .select('value')
-      .eq('key', 'last_poll_timestamp')
-      .single();
+      .select('key, value')
+      .in('key', ['big_sale_threshold', 'tgl_option_name', 'last_poll_timestamp', 'recently_processed_ids']);
 
-    if (appStateError) {
-      throw new Error(`Failed to read app_state: ${appStateError.message}`);
+    if (settingsError) {
+      throw new Error(`Failed to read settings: ${settingsError.message}`);
     }
 
-    const lastPollTimestamp = appStateData.value as string;
+    const settingsMap: any = {};
+    (settings || []).forEach((s) => {
+      settingsMap[s.key] = s.value;
+    });
+
+    const BIG_SALE_THRESHOLD = parseInt(settingsMap.big_sale_threshold || '700', 10);
+    const TGL_OPTION_NAME = settingsMap.tgl_option_name
+      ? JSON.parse(settingsMap.tgl_option_name)
+      : 'Option C - System Update';
+
+    console.log(`⚙️  Settings: Threshold=$${BIG_SALE_THRESHOLD}, TGL="${TGL_OPTION_NAME}"`);
+
+    const lastPollTimestamp = settingsMap.last_poll_timestamp as string;
     console.log(`📅 Last poll timestamp: ${lastPollTimestamp}`);
 
-    // 2. Read recently processed IDs
-    const { data: processedIdsData, error: processedIdsError } = await supabase
-      .from('app_state')
-      .select('value')
-      .eq('key', 'recently_processed_ids')
-      .single();
-
-    if (processedIdsError) {
-      throw new Error(`Failed to read recently_processed_ids: ${processedIdsError.message}`);
-    }
-
-    let recentlyProcessedIds = (processedIdsData.value as string[]) || [];
+    let recentlyProcessedIds = (settingsMap.recently_processed_ids as string[]) || [];
     console.log(`🔍 Recently processed IDs: ${recentlyProcessedIds.length}`);
 
-    // 3. Query ServiceTitan API
+    // 2. Query ServiceTitan API
     console.log('📡 Querying ServiceTitan API...');
     const estimates: Estimate[] = await getSoldEstimates(lastPollTimestamp);
     console.log(`✅ Found ${estimates.length} estimates`);
@@ -197,6 +282,9 @@ export const handler: Handler = async (_event, _context) => {
           customerName,
           isTGL
         );
+
+        // Send to webhooks
+        await sendToWebhooks(message, gifUrl, type, estimateId);
 
         // Insert estimate into database
         const { data: insertedEstimate, error: estimateError } = await supabase

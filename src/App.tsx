@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import People from './pages/People'
 import Messages from './pages/Messages'
 import GIFs from './pages/GIFs'
+import Configuration from './pages/Configuration'
 
 function App() {
   const [unassignedCount, setUnassignedCount] = useState(0)
@@ -94,6 +95,9 @@ function App() {
               <Link to="/gifs" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '1rem' }}>
                 GIFs
               </Link>
+              <Link to="/configuration" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '1rem' }}>
+                Configuration
+              </Link>
             </div>
           </div>
         </nav>
@@ -104,6 +108,7 @@ function App() {
           <Route path="/people" element={<People />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/gifs" element={<GIFs />} />
+          <Route path="/configuration" element={<Configuration />} />
         </Routes>
 
         {/* Add bounce animation */}
