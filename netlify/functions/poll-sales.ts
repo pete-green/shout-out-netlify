@@ -9,15 +9,17 @@ import {
   TGL_OPTION_NAME,
 } from './lib/constants';
 
+interface EstimateItem {
+  skuName: string;
+  total: number;
+}
+
 interface Estimate {
   id: string;
   soldOn: string;
   soldBy: { name: string };
   customer: { name: string };
-  items: Array<{
-    skuName: string;
-    total: number;
-  }>;
+  items: EstimateItem[];
   subtotal: number;
 }
 
@@ -78,7 +80,7 @@ function generateMessage(
 /**
  * Main polling handler
  */
-export const handler: Handler = async (event, context) => {
+export const handler: Handler = async (_event, _context) => {
   const startTime = Date.now();
 
   console.log('🚀 Starting poll-sales function...');
@@ -114,7 +116,7 @@ export const handler: Handler = async (event, context) => {
 
     // 3. Query ServiceTitan API
     console.log('📡 Querying ServiceTitan API...');
-    const estimates = await getSoldEstimates(lastPollTimestamp);
+    const estimates: Estimate[] = await getSoldEstimates(lastPollTimestamp);
     console.log(`✅ Found ${estimates.length} estimates`);
 
     let estimatesProcessed = 0;
@@ -139,7 +141,7 @@ export const handler: Handler = async (event, context) => {
         // Find "Option C - System Update" in items
         let optionName = '';
         if (estimate.items && Array.isArray(estimate.items)) {
-          const optionItem = estimate.items.find((item) =>
+          const optionItem = estimate.items.find((item: EstimateItem) =>
             item.skuName?.includes(TGL_OPTION_NAME)
           );
           if (optionItem) {

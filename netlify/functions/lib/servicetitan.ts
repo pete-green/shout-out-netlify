@@ -1,11 +1,19 @@
 // ServiceTitan API configuration
+function getRequiredEnv(key: string): string {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  return value;
+}
+
 const ST_CONFIG = {
-  baseUrl: process.env.ST_BASE_URL!,
-  authUrl: process.env.ST_AUTH_URL!,
-  tenantId: process.env.ST_TENANT_ID!,
-  applicationKey: process.env.ST_APP_KEY!,
-  clientId: process.env.ST_CLIENT_ID!,
-  clientSecret: process.env.ST_CLIENT_SECRET!,
+  baseUrl: getRequiredEnv('ST_BASE_URL'),
+  authUrl: getRequiredEnv('ST_AUTH_URL'),
+  tenantId: getRequiredEnv('ST_TENANT_ID'),
+  applicationKey: getRequiredEnv('ST_APP_KEY'),
+  clientId: getRequiredEnv('ST_CLIENT_ID'),
+  clientSecret: getRequiredEnv('ST_CLIENT_SECRET'),
 };
 
 // Token cache
@@ -45,6 +53,11 @@ export async function getServiceTitanToken(): Promise<string> {
 
   const tokenData = await response.json();
   cachedToken = tokenData.access_token;
+
+  if (!cachedToken) {
+    throw new Error('Service Titan returned an empty access token');
+  }
+
   const expiresIn = tokenData.expires_in || 3600;
 
   // Calculate expiry time (subtract 5 minutes for safety)
