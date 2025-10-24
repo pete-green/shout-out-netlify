@@ -1,6 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { supabase } from './lib/supabase';
-import { getSoldEstimates } from './lib/servicetitan';
+import { getSoldEstimates, getTechnician, getCustomer } from './lib/servicetitan';
 import {
   BIG_SALE_MESSAGES,
   BIG_SALE_GIFS,
@@ -17,8 +17,8 @@ interface EstimateItem {
 interface Estimate {
   id: string;
   soldOn: string;
-  soldBy: { name: string };
-  customer: { name: string };
+  soldBy: number;
+  customerId: number;
   items: EstimateItem[];
   subtotal: number;
 }
@@ -133,8 +133,10 @@ export const handler: Handler = async (_event, _context) => {
       }
 
       try {
-        const salesperson = estimate.soldBy?.name || 'Unknown';
-        const customerName = formatCustomerName(estimate.customer?.name || 'Unknown Customer');
+        // Resolve technician and customer IDs to names
+        const salesperson = await getTechnician(estimate.soldBy);
+        const rawCustomerName = await getCustomer(estimate.customerId);
+        const customerName = formatCustomerName(rawCustomerName);
         const amount = estimate.subtotal || 0;
         const soldAt = estimate.soldOn;
 

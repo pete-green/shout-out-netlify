@@ -20,6 +20,11 @@ const ST_CONFIG = {
 let cachedToken: string | null = null;
 let tokenExpiry: Date | null = null;
 
+// Lookup caches (in-memory for single function execution)
+const technicianCache = new Map<number, string>();
+const customerCache = new Map<number, string>();
+const MAX_CACHE_SIZE = 100;
+
 /**
  * Get ServiceTitan OAuth token (cached for performance)
  */
@@ -96,4 +101,100 @@ export async function getSoldEstimates(soldAfter: string) {
 
   const data = await response.json();
   return data.data || [];
+}
+
+/**
+ * Get technician name by ID
+ * @param technicianId The technician ID from soldBy field
+ * @returns Technician name or fallback string
+ */
+export async function getTechnician(technicianId: number): Promise<string> {
+  // Check cache first
+  if (technicianCache.has(technicianId)) {
+    return technicianCache.get(technicianId)!;
+  }
+
+  try {
+    const bearerToken = await getServiceTitanToken();
+    const url = `${ST_CONFIG.baseUrl}/settings/v2/tenant/${ST_CONFIG.tenantId}/technicians/${technicianId}`;
+
+    console.log(`Fetching technician ${technicianId}...`);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${bearerToken}`,
+        'ST-App-Key': ST_CONFIG.applicationKey,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to fetch technician ${technicianId}: ${response.status}`);
+      return `Technician #${technicianId}`;
+    }
+
+    const data = await response.json();
+    const name = data.name || `Technician #${technicianId}`;
+
+    // Add to cache (limit size)
+    if (technicianCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = technicianCache.keys().next().value;
+      technicianCache.delete(firstKey);
+    }
+    technicianCache.set(technicianId, name);
+
+    return name;
+  } catch (error: any) {
+    console.error(`Error fetching technician ${technicianId}:`, error.message);
+    return `Technician #${technicianId}`;
+  }
+}
+
+/**
+ * Get customer name by ID
+ * @param customerId The customer ID from the estimate
+ * @returns Customer name or fallback string
+ */
+export async function getCustomer(customerId: number): Promise<string> {
+  // Check cache first
+  if (customerCache.has(customerId)) {
+    return customerCache.get(customerId)!;
+  }
+
+  try {
+    const bearerToken = await getServiceTitanToken();
+    const url = `${ST_CONFIG.baseUrl}/crm/v2/tenant/${ST_CONFIG.tenantId}/customers/${customerId}`;
+
+    console.log(`Fetching customer ${customerId}...`);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${bearerToken}`,
+        'ST-App-Key': ST_CONFIG.applicationKey,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to fetch customer ${customerId}: ${response.status}`);
+      return `Customer #${customerId}`;
+    }
+
+    const data = await response.json();
+    const name = data.name || `Customer #${customerId}`;
+
+    // Add to cache (limit size)
+    if (customerCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = customerCache.keys().next().value;
+      customerCache.delete(firstKey);
+    }
+    customerCache.set(customerId, name);
+
+    return name;
+  } catch (error: any) {
+    console.error(`Error fetching customer ${customerId}:`, error.message);
+    return `Customer #${customerId}`;
+  }
 }
