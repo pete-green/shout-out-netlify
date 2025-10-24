@@ -140,7 +140,9 @@ export async function getTechnician(technicianId: number): Promise<string> {
     // Add to cache (limit size)
     if (technicianCache.size >= MAX_CACHE_SIZE) {
       const firstKey = technicianCache.keys().next().value;
-      technicianCache.delete(firstKey);
+      if (firstKey !== undefined) {
+        technicianCache.delete(firstKey);
+      }
     }
     technicianCache.set(technicianId, name);
 
@@ -188,7 +190,9 @@ export async function getCustomer(customerId: number): Promise<string> {
     // Add to cache (limit size)
     if (customerCache.size >= MAX_CACHE_SIZE) {
       const firstKey = customerCache.keys().next().value;
-      customerCache.delete(firstKey);
+      if (firstKey !== undefined) {
+        customerCache.delete(firstKey);
+      }
     }
     customerCache.set(customerId, name);
 
