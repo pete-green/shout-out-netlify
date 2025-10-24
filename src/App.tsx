@@ -1,8 +1,31 @@
+import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Home from './pages/Home'
-import Salespeople from './pages/Salespeople'
+import People from './pages/People'
 
 function App() {
+  const [unassignedCount, setUnassignedCount] = useState(0)
+
+  // Fetch unassigned count on mount and every 30 seconds
+  useEffect(() => {
+    fetchUnassignedCount()
+    const interval = setInterval(fetchUnassignedCount, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const fetchUnassignedCount = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/salespeople')
+      if (response.ok) {
+        const data = await response.json()
+        const count = data.filter((person: any) => !person.business_unit).length
+        setUnassignedCount(count)
+      }
+    } catch (error) {
+      console.error('Failed to fetch unassigned count:', error)
+    }
+  }
+
   return (
     <Router>
       <div style={{
@@ -25,12 +48,43 @@ function App() {
             margin: '0 auto'
           }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>🎉 Shout Out</h1>
-            <div style={{ display: 'flex', gap: '2rem' }}>
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
               <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '1rem' }}>
                 Home
               </Link>
-              <Link to="/salespeople" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '1rem' }}>
-                Salespeople
+              <Link
+                to="/people"
+                style={{
+                  color: '#94a3b8',
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  position: 'relative',
+                }}
+              >
+                People
+                {unassignedCount > 0 && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: '1.5rem',
+                      height: '1.5rem',
+                      padding: '0 0.35rem',
+                      backgroundColor: '#f59e0b',
+                      color: '#000',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      animation: 'bounce 1s infinite',
+                    }}
+                  >
+                    {unassignedCount}
+                  </span>
+                )}
               </Link>
             </div>
           </div>
@@ -39,8 +93,20 @@ function App() {
         {/* Routes */}
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/salespeople" element={<Salespeople />} />
+          <Route path="/people" element={<People />} />
         </Routes>
+
+        {/* Add bounce animation */}
+        <style>{`
+          @keyframes bounce {
+            0%, 100% {
+              transform: translateY(0);
+            }
+            50% {
+              transform: translateY(-5px);
+            }
+          }
+        `}</style>
       </div>
     </Router>
   )

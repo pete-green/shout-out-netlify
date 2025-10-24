@@ -8,6 +8,19 @@ const BUSINESS_UNITS = [
   'Electrical Service',
   'Electrical Install',
   'Inside Sales',
+  'Office',
+  'Apprentice',
+  'Other',
+]
+
+const SALES_UNITS = [
+  'Plumbing Service',
+  'Plumbing Install',
+  'HVAC Service',
+  'HVAC Install',
+  'Electrical Service',
+  'Electrical Install',
+  'Inside Sales',
 ]
 
 interface Salesperson {
@@ -25,8 +38,12 @@ interface Salesperson {
   updated_at: string
 }
 
-function Salespeople() {
+type SortField = 'name' | 'email' | 'business_unit' | 'is_active'
+type SortDirection = 'asc' | 'desc'
+
+function People() {
   const [salespeople, setSalespeople] = useState<Salesperson[]>([])
+  const [filteredPeople, setFilteredPeople] = useState<Salesperson[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,10 +54,52 @@ function Salespeople() {
     is_active: true,
   })
 
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+
+  // Filter state - default: sales units + unassigned
+  const [showUnassigned, setShowUnassigned] = useState(true)
+  const [visibleUnits, setVisibleUnits] = useState<Set<string>>(new Set(SALES_UNITS))
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
+
   // Fetch salespeople on mount
   useEffect(() => {
     fetchSalespeople()
   }, [])
+
+  // Apply filtering and sorting whenever data or filters change
+  useEffect(() => {
+    let filtered = [...salespeople]
+
+    // Apply business unit filter
+    filtered = filtered.filter((person) => {
+      if (person.business_unit === null) {
+        return showUnassigned
+      }
+      return visibleUnits.has(person.business_unit)
+    })
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue: any = a[sortField]
+      let bValue: any = b[sortField]
+
+      // Handle null values
+      if (aValue === null) aValue = ''
+      if (bValue === null) bValue = ''
+
+      // Convert to lowercase for string comparisons
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase()
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase()
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+
+    setFilteredPeople(filtered)
+  }, [salespeople, visibleUnits, showUnassigned, sortField, sortDirection])
 
   const fetchSalespeople = async () => {
     try {
@@ -48,7 +107,7 @@ function Salespeople() {
       setError(null)
       const response = await fetch('/.netlify/functions/salespeople')
       if (!response.ok) {
-        throw new Error('Failed to fetch salespeople')
+        throw new Error('Failed to fetch people')
       }
       const data = await response.json()
       setSalespeople(data)
@@ -67,16 +126,37 @@ function Salespeople() {
         method: 'POST',
       })
       if (!response.ok) {
-        throw new Error('Failed to sync salespeople')
+        throw new Error('Failed to sync people')
       }
       const result = await response.json()
-      alert(`Sync completed! ${result.synced} salespeople synced.`)
+      alert(`Sync completed! ${result.synced} people synced.`)
       fetchSalespeople() // Refresh list
     } catch (err: any) {
       setError(err.message)
     } finally {
       setSyncing(false)
     }
+  }
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // New field, default to ascending
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const toggleBusinessUnit = (unit: string) => {
+    const newVisibleUnits = new Set(visibleUnits)
+    if (newVisibleUnits.has(unit)) {
+      newVisibleUnits.delete(unit)
+    } else {
+      newVisibleUnits.add(unit)
+    }
+    setVisibleUnits(newVisibleUnits)
   }
 
   const startEdit = (person: Salesperson) => {
@@ -103,7 +183,7 @@ function Salespeople() {
         body: JSON.stringify(editForm),
       })
       if (!response.ok) {
-        throw new Error('Failed to update salesperson')
+        throw new Error('Failed to update person')
       }
       const updated = await response.json()
       setSalespeople((prev) =>
@@ -115,13 +195,20 @@ function Salespeople() {
     }
   }
 
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) return null
+    return sortDirection === 'asc' ? ' ↑' : ' ↓'
+  }
+
   if (loading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <p style={{ color: '#94a3b8' }}>Loading salespeople...</p>
+        <p style={{ color: '#94a3b8' }}>Loading people...</p>
       </div>
     )
   }
+
+  const unassignedCount = salespeople.filter((p) => !p.business_unit).length
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
@@ -131,7 +218,16 @@ function Salespeople() {
         alignItems: 'center',
         marginBottom: '2rem'
       }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Salespeople Management</h2>
+        <div>
+          <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+            People Management
+          </h2>
+          {unassignedCount > 0 && (
+            <p style={{ color: '#f59e0b', fontSize: '0.875rem' }}>
+              ⚠️ {unassignedCount} {unassignedCount === 1 ? 'person' : 'people'} without business unit assigned
+            </p>
+          )}
+        </div>
         <button
           onClick={syncSalespeople}
           disabled={syncing}
@@ -162,6 +258,92 @@ function Salespeople() {
         </div>
       )}
 
+      {/* Filter Controls */}
+      <div style={{ marginBottom: '1rem', position: 'relative' }}>
+        <button
+          onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: '#334155',
+            color: '#f1f5f9',
+            border: '1px solid #475569',
+            borderRadius: '0.375rem',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: '500',
+          }}
+        >
+          🔽 Filter Business Units ({visibleUnits.size + (showUnassigned ? 1 : 0)}/{BUSINESS_UNITS.length + 1})
+        </button>
+
+        {filterDropdownOpen && (
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            marginTop: '0.5rem',
+            backgroundColor: '#1e293b',
+            border: '1px solid #475569',
+            borderRadius: '0.375rem',
+            padding: '1rem',
+            zIndex: 10,
+            minWidth: '250px',
+            maxHeight: '400px',
+            overflowY: 'auto',
+          }}>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.875rem' }}>
+                <input
+                  type="checkbox"
+                  checked={showUnassigned}
+                  onChange={(e) => setShowUnassigned(e.target.checked)}
+                  style={{ marginRight: '0.5rem', cursor: 'pointer' }}
+                />
+                <span style={{ color: showUnassigned ? '#f1f5f9' : '#94a3b8' }}>
+                  Unassigned ({unassignedCount})
+                </span>
+              </label>
+            </div>
+
+            <div style={{ borderTop: '1px solid #475569', paddingTop: '0.75rem' }}>
+              {BUSINESS_UNITS.map((unit) => (
+                <div key={unit} style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.875rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={visibleUnits.has(unit)}
+                      onChange={() => toggleBusinessUnit(unit)}
+                      style={{ marginRight: '0.5rem', cursor: 'pointer' }}
+                    />
+                    <span style={{ color: visibleUnits.has(unit) ? '#f1f5f9' : '#94a3b8' }}>
+                      {unit}
+                    </span>
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ borderTop: '1px solid #475569', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
+              <button
+                onClick={() => setFilterDropdownOpen(false)}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.25rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div style={{
         backgroundColor: '#1e293b',
         borderRadius: '0.5rem',
@@ -171,17 +353,36 @@ function Salespeople() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: '#334155' }}>
-              <th style={tableHeaderStyle}>Name</th>
-              <th style={tableHeaderStyle}>Email</th>
-              <th style={tableHeaderStyle}>Phone</th>
-              <th style={tableHeaderStyle}>Business Unit</th>
+              <th
+                onClick={() => handleSort('name')}
+                style={{ ...tableHeaderStyle, cursor: 'pointer', userSelect: 'none' }}
+              >
+                Name{renderSortIcon('name')}
+              </th>
+              <th
+                onClick={() => handleSort('email')}
+                style={{ ...tableHeaderStyle, cursor: 'pointer', userSelect: 'none' }}
+              >
+                Email{renderSortIcon('email')}
+              </th>
+              <th
+                onClick={() => handleSort('business_unit')}
+                style={{ ...tableHeaderStyle, cursor: 'pointer', userSelect: 'none' }}
+              >
+                Business Unit{renderSortIcon('business_unit')}
+              </th>
               <th style={tableHeaderStyle}>Headshot</th>
-              <th style={tableHeaderStyle}>Active</th>
+              <th
+                onClick={() => handleSort('is_active')}
+                style={{ ...tableHeaderStyle, cursor: 'pointer', userSelect: 'none' }}
+              >
+                Active{renderSortIcon('is_active')}
+              </th>
               <th style={tableHeaderStyle}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {salespeople.map((person) => {
+            {filteredPeople.map((person) => {
               const isEditing = editingId === person.id
 
               return (
@@ -196,9 +397,6 @@ function Salespeople() {
                   </td>
                   <td style={tableCellStyle}>
                     {person.email || <span style={{ color: '#64748b' }}>—</span>}
-                  </td>
-                  <td style={tableCellStyle}>
-                    {person.phone || <span style={{ color: '#64748b' }}>—</span>}
                   </td>
                   <td style={tableCellStyle}>
                     {isEditing ? (
@@ -223,8 +421,10 @@ function Salespeople() {
                           </option>
                         ))}
                       </select>
+                    ) : person.business_unit ? (
+                      person.business_unit
                     ) : (
-                      person.business_unit || <span style={{ color: '#64748b' }}>Not set</span>
+                      <span style={{ color: '#f59e0b', fontWeight: '600' }}>Not set</span>
                     )}
                   </td>
                   <td style={tableCellStyle}>
@@ -324,11 +524,17 @@ function Salespeople() {
           </tbody>
         </table>
 
-        {salespeople.length === 0 && (
+        {filteredPeople.length === 0 && (
           <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-            No salespeople found. Click "Sync from ServiceTitan" to import.
+            {salespeople.length === 0
+              ? 'No people found. Click "Sync from ServiceTitan" to import.'
+              : 'No people match the current filters.'}
           </div>
         )}
+      </div>
+
+      <div style={{ marginTop: '1rem', color: '#64748b', fontSize: '0.875rem' }}>
+        Showing {filteredPeople.length} of {salespeople.length} people
       </div>
     </div>
   )
@@ -359,4 +565,4 @@ const actionButtonStyle: React.CSSProperties = {
   fontWeight: '500',
 }
 
-export default Salespeople
+export default People

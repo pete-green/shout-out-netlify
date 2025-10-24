@@ -97,8 +97,24 @@ export const BIG_SALE_THRESHOLD = 700;
 // TGL detection criteria
 export const TGL_OPTION_NAME = "Option C - System Update";
 
-// Business Units for salespeople
+// Business Units for people
 export const BUSINESS_UNITS = [
+  'Plumbing Service',
+  'Plumbing Install',
+  'HVAC Service',
+  'HVAC Install',
+  'Electrical Service',
+  'Electrical Install',
+  'Inside Sales',
+  'Office',
+  'Apprentice',
+  'Other',
+] as const;
+
+export type BusinessUnit = typeof BUSINESS_UNITS[number];
+
+// Sales-focused business units (shown by default)
+export const SALES_BUSINESS_UNITS = [
   'Plumbing Service',
   'Plumbing Install',
   'HVAC Service',
@@ -108,4 +124,9 @@ export const BUSINESS_UNITS = [
   'Inside Sales',
 ] as const;
 
-export type BusinessUnit = typeof BUSINESS_UNITS[number];
+// Non-sales business units (hidden by default)
+export const NON_SALES_BUSINESS_UNITS = [
+  'Office',
+  'Apprentice',
+  'Other',
+] as const;
