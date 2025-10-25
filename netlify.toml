@@ -14,11 +14,16 @@
 [functions]
   node_bundler = "esbuild"
 
-# Scheduled functions
+# Enable branch deploys for testing
+[context.branch-deploy]
+  command = "npm run build"
+
+# Scheduled functions - PRODUCTION ONLY
+# These will NOT run on branch deploys to avoid duplicate polling and celebrations
 # poll-sales: Polls ServiceTitan API every 5 minutes for new sales
 # To change interval: Edit the schedule below and redeploy the application
 # Format: */X * * * * where X is minutes (e.g., */5 for 5 minutes, */10 for 10 minutes)
-[functions."poll-sales"]
+[context.production.functions."poll-sales"]
   schedule = "*/5 * * * *"
 
 # sync-salespeople: Syncs salespeople daily at 2 AM UTC (configured via Netlify UI)

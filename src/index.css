@@ -2,6 +2,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -11,4 +12,32 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+
+/* Allow text selection in inputs and textareas */
+input, textarea, [contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* iOS Safari specific fixes */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+textarea {
+  font-size: 16px !important; /* Prevent zoom on focus in iOS */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Smooth scrolling for iOS */
+* {
+  -webkit-overflow-scrolling: touch;
 }

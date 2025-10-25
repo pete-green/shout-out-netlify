@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useIsMobile } from '../hooks/useDeviceType';
 
 interface TopSalesperson {
   name: string;
@@ -54,6 +55,7 @@ const departmentColors: { [key: string]: string } = {
 };
 
 function Home() {
+  const isMobile = useIsMobile();
   const [startDate, setStartDate] = useState<string>(getTodayET());
   const [endDate, setEndDate] = useState<string>(getTodayET());
   const [data, setData] = useState<DashboardData | null>(null);
@@ -147,7 +149,7 @@ function Home() {
   return (
     <div
       style={{
-        padding: '2rem',
+        padding: isMobile ? '1rem' : '2rem',
         maxWidth: '1400px',
         margin: '0 auto',
         minHeight: 'calc(100vh - 80px)',
@@ -156,19 +158,19 @@ function Home() {
       {/* Header */}
       <div
         style={{
-          marginBottom: '2rem',
+          marginBottom: isMobile ? '1.5rem' : '2rem',
           display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
+          alignItems: isMobile ? 'stretch' : 'center',
           gap: '1rem',
         }}
       >
-        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>
+        <h1 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', margin: 0 }}>
           📊 Sales Dashboard
         </h1>
 
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '1rem', alignItems: 'stretch' }}>
           {/* Date Range Picker */}
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <input
@@ -176,12 +178,14 @@ function Home() {
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               style={{
-                padding: '0.5rem',
+                flex: isMobile ? 1 : 'none',
+                padding: isMobile ? '0.75rem' : '0.5rem',
                 backgroundColor: '#1e293b',
                 border: '1px solid #334155',
                 borderRadius: '0.375rem',
                 color: '#f1f5f9',
-                fontSize: '0.875rem',
+                fontSize: isMobile ? '1rem' : '0.875rem',
+                minHeight: isMobile ? '44px' : 'auto',
               }}
             />
             <span style={{ color: '#94a3b8' }}>to</span>
@@ -190,12 +194,14 @@ function Home() {
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               style={{
-                padding: '0.5rem',
+                flex: isMobile ? 1 : 'none',
+                padding: isMobile ? '0.75rem' : '0.5rem',
                 backgroundColor: '#1e293b',
                 border: '1px solid #334155',
                 borderRadius: '0.375rem',
                 color: '#f1f5f9',
-                fontSize: '0.875rem',
+                fontSize: isMobile ? '1rem' : '0.875rem',
+                minHeight: isMobile ? '44px' : 'auto',
               }}
             />
           </div>
@@ -205,15 +211,16 @@ function Home() {
             onClick={fetchDashboard}
             disabled={loading}
             style={{
-              padding: '0.5rem 1rem',
+              padding: isMobile ? '0.75rem 1rem' : '0.5rem 1rem',
               backgroundColor: '#3b82f6',
               color: 'white',
               border: 'none',
               borderRadius: '0.375rem',
               cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: '0.875rem',
+              fontSize: isMobile ? '1rem' : '0.875rem',
               fontWeight: '500',
               opacity: loading ? 0.5 : 1,
+              minHeight: isMobile ? '44px' : 'auto',
             }}
           >
             {loading ? '⟳ Refreshing...' : '🔄 Refresh'}
@@ -260,15 +267,15 @@ function Home() {
               backgroundColor: '#1e293b',
               border: '2px solid #3b82f6',
               borderRadius: '0.75rem',
-              padding: '2rem',
-              marginBottom: '2rem',
+              padding: isMobile ? '1.5rem' : '2rem',
+              marginBottom: isMobile ? '1.5rem' : '2rem',
               textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: '1rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: isMobile ? '0.875rem' : '1rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
               Company Total
             </div>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#3b82f6' }}>
+            <div style={{ fontSize: isMobile ? '2rem' : '3rem', fontWeight: 'bold', color: '#3b82f6' }}>
               {formatCurrency(data.companyTotal)}
             </div>
             <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
@@ -279,15 +286,15 @@ function Home() {
           </div>
 
           {/* Department Sales Grid */}
-          <div style={{ marginBottom: '3rem' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: isMobile ? '2rem' : '3rem' }}>
+            <h2 style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
               Department Sales
             </h2>
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-                gap: '1rem',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(250px, 1fr))',
+                gap: isMobile ? '0.75rem' : '1rem',
               }}
             >
               {data.departments.map((dept) => (
@@ -297,15 +304,15 @@ function Home() {
                     backgroundColor: '#1e293b',
                     border: `2px solid ${departmentColors[dept.department] || '#334155'}`,
                     borderRadius: '0.5rem',
-                    padding: '1.5rem',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    padding: isMobile ? '1.25rem' : '1.5rem',
+                    transition: isMobile ? 'none' : 'transform 0.2s, box-shadow 0.2s',
                     cursor: 'default',
                   }}
-                  onMouseEnter={(e) => {
+                  onMouseEnter={isMobile ? undefined : (e) => {
                     e.currentTarget.style.transform = 'translateY(-4px)';
                     e.currentTarget.style.boxShadow = `0 10px 25px -5px ${departmentColors[dept.department]}40`;
                   }}
-                  onMouseLeave={(e) => {
+                  onMouseLeave={isMobile ? undefined : (e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = 'none';
                   }}
@@ -320,7 +327,7 @@ function Home() {
                   >
                     {dept.department}
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                  <div style={{ fontSize: isMobile ? '1.75rem' : '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
                     {formatCurrency(dept.total)}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -333,10 +340,10 @@ function Home() {
 
           {/* Top Performers */}
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', fontWeight: 'bold', marginBottom: isMobile ? '1rem' : '1.5rem' }}>
               🏆 Top Performers by Department
             </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.75rem' : '1rem' }}>
               {data.departments.map((dept) => (
                 <div
                   key={dept.department}
@@ -344,19 +351,19 @@ function Home() {
                     backgroundColor: '#1e293b',
                     border: '1px solid #334155',
                     borderRadius: '0.5rem',
-                    padding: '1.25rem',
+                    padding: isMobile ? '1rem' : '1.25rem',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     flexWrap: 'wrap',
-                    gap: '1rem',
+                    gap: isMobile ? '0.75rem' : '1rem',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.75rem' : '1rem' }}>
                     <div
                       style={{
                         width: '4px',
-                        height: '60px',
+                        height: isMobile ? '50px' : '60px',
                         backgroundColor: departmentColors[dept.department] || '#334155',
                         borderRadius: '2px',
                       }}
@@ -366,8 +373,8 @@ function Home() {
                         src={dept.topSalesperson.headshot_url}
                         alt={dept.topSalesperson.name}
                         style={{
-                          width: '60px',
-                          height: '60px',
+                          width: isMobile ? '50px' : '60px',
+                          height: isMobile ? '50px' : '60px',
                           objectFit: 'cover',
                           borderRadius: '50%',
                           border: `2px solid ${departmentColors[dept.department] || '#475569'}`,
@@ -383,14 +390,14 @@ function Home() {
                     {dept.topSalesperson && !dept.topSalesperson.headshot_url ? (
                       <div
                         style={{
-                          width: '60px',
-                          height: '60px',
+                          width: isMobile ? '50px' : '60px',
+                          height: isMobile ? '50px' : '60px',
                           borderRadius: '50%',
                           backgroundColor: '#334155',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '1.5rem',
+                          fontSize: isMobile ? '1.25rem' : '1.5rem',
                           fontWeight: 'bold',
                           color: '#94a3b8',
                           border: `2px solid ${departmentColors[dept.department] || '#475569'}`,
@@ -400,12 +407,12 @@ function Home() {
                       </div>
                     ) : null}
                     <div>
-                      <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                      <div style={{ fontSize: isMobile ? '0.75rem' : '0.875rem', color: '#94a3b8' }}>
                         {dept.department}
                       </div>
                       {dept.topSalesperson ? (
                         <>
-                          <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
+                          <div style={{ fontSize: isMobile ? '1rem' : '1.125rem', fontWeight: '600' }}>
                             {dept.topSalesperson.name}
                           </div>
                           <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
@@ -413,7 +420,7 @@ function Home() {
                           </div>
                         </>
                       ) : (
-                        <div style={{ fontSize: '1rem', color: '#64748b', fontStyle: 'italic' }}>
+                        <div style={{ fontSize: isMobile ? '0.875rem' : '1rem', color: '#64748b', fontStyle: 'italic' }}>
                           No sales yet
                         </div>
                       )}
@@ -422,7 +429,7 @@ function Home() {
                   {dept.topSalesperson && (
                     <div
                       style={{
-                        fontSize: '1.5rem',
+                        fontSize: isMobile ? '1.25rem' : '1.5rem',
                         fontWeight: 'bold',
                         color: departmentColors[dept.department] || '#94a3b8',
                       }}
