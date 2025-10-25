@@ -60,13 +60,13 @@ export const handler: Handler = async (event, _context) => {
 
       console.log(`📊 Fetching dashboard stats for ${startDate} to ${endDate}`);
 
-      // Fetch all paid sales (amount > 0) within date range
+      // Use raw SQL with AT TIME ZONE to properly filter by Eastern Time
+      // This query filters sold_at timestamps by their Eastern Time date, not UTC
       const { data: salesData, error: salesError } = await supabase
-        .from('estimates')
-        .select('id, estimate_id, salesperson, amount, sold_at')
-        .gte('sold_at', `${startDate}T00:00:00`)
-        .lte('sold_at', `${endDate}T23:59:59`)
-        .gt('amount', 0);
+        .rpc('get_sales_by_date_range', {
+          p_start_date: startDate,
+          p_end_date: endDate
+        });
 
       if (salesError) {
         console.error('❌ Error fetching sales data:', salesError);
