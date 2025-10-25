@@ -19,7 +19,7 @@ function createResponse(statusCode: number, body: any, additionalHeaders?: Recor
  * Salespeople API endpoint
  * GET / - List all salespeople
  * GET /:id - Get one salesperson
- * PATCH /:id - Update one salesperson (business_unit, headshot_url, is_active)
+ * PATCH /:id - Update one salesperson (business_unit, headshot_url, gender, is_active)
  */
 export const handler: Handler = async (event, _context) => {
   const { httpMethod, path, body } = event;
@@ -78,7 +78,7 @@ export const handler: Handler = async (event, _context) => {
       }
 
       // Only allow updating specific fields
-      const allowedFields = ['business_unit', 'headshot_url', 'is_active'];
+      const allowedFields = ['business_unit', 'headshot_url', 'gender', 'is_active'];
       const updateData: any = {};
 
       for (const field of allowedFields) {

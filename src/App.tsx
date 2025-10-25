@@ -53,7 +53,7 @@ function App() {
             <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>🎉 Shout Out</h1>
             <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
               <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '1rem' }}>
-                Home
+                Dashboard
               </Link>
               <Link
                 to="/people"

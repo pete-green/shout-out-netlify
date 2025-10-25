@@ -92,6 +92,8 @@ export const handler: Handler = async (event, _context) => {
           message_text: newMessage.message_text,
           category: newMessage.category,
           is_active: newMessage.is_active !== undefined ? newMessage.is_active : true,
+          assigned_to_salesperson: newMessage.assigned_to_salesperson || null,
+          paired_gif_id: newMessage.paired_gif_id || null,
         })
         .select()
         .single();
@@ -128,7 +130,7 @@ export const handler: Handler = async (event, _context) => {
       }
 
       // Only allow updating specific fields
-      const allowedFields = ['message_text', 'category', 'is_active'];
+      const allowedFields = ['message_text', 'category', 'is_active', 'assigned_to_salesperson', 'paired_gif_id'];
       const updateData: any = {};
 
       for (const field of allowedFields) {

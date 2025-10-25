@@ -1,12 +1,31 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
 
 interface Message {
   id: number
   message_text: string
   category: 'big_sale' | 'tgl'
   is_active: boolean
+  assigned_to_salesperson: string | null
+  last_used_at: string | null
+  last_used_for: string | null
+  use_count: number
+  paired_gif_id: number | null
   created_at: string
   updated_at: string
+}
+
+interface Salesperson {
+  id: number
+  name: string
+}
+
+interface GIF {
+  id: number
+  name: string
+  url: string
+  tags: string[]
+  is_active: boolean
 }
 
 const SAMPLE_NAME = 'Richard Sinnott'
@@ -14,20 +33,51 @@ const SAMPLE_AMOUNT = '1,234.56'
 
 function Messages() {
   const [messages, setMessages] = useState<Message[]>([])
+  const [salespeople, setSalespeople] = useState<Salesperson[]>([])
+  const [gifs, setGifs] = useState<GIF[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'big_sale' | 'tgl'>('big_sale')
+  const [assignmentFilter, setAssignmentFilter] = useState<string>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingMessage, setEditingMessage] = useState<Message | null>(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
   const [formData, setFormData] = useState({
     message_text: '',
     category: 'big_sale' as 'big_sale' | 'tgl',
     is_active: true,
+    assigned_to_salesperson: null as string | null,
+    paired_gif_id: null as number | null,
   })
 
   useEffect(() => {
     fetchMessages()
+    fetchSalespeople()
+    fetchGifs()
   }, [])
+
+  const fetchSalespeople = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/salespeople')
+      if (!response.ok) throw new Error('Failed to fetch salespeople')
+      const data = await response.json()
+      setSalespeople(data)
+    } catch (err: any) {
+      console.error('Failed to fetch salespeople:', err.message)
+    }
+  }
+
+  const fetchGifs = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/gifs')
+      if (!response.ok) throw new Error('Failed to fetch GIFs')
+      const data = await response.json()
+      setGifs(data)
+    } catch (err: any) {
+      console.error('Failed to fetch GIFs:', err.message)
+    }
+  }
 
   const fetchMessages = async () => {
     try {
@@ -57,6 +107,8 @@ function Messages() {
       message_text: '',
       category,
       is_active: true,
+      assigned_to_salesperson: null,
+      paired_gif_id: null,
     })
     setIsModalOpen(true)
   }
@@ -67,6 +119,8 @@ function Messages() {
       message_text: message.message_text,
       category: message.category,
       is_active: message.is_active,
+      assigned_to_salesperson: message.assigned_to_salesperson,
+      paired_gif_id: message.paired_gif_id,
     })
     setIsModalOpen(true)
   }
@@ -74,7 +128,7 @@ function Messages() {
   const closeModal = () => {
     setIsModalOpen(false)
     setEditingMessage(null)
-    setFormData({ message_text: '', category: 'big_sale', is_active: true })
+    setFormData({ message_text: '', category: 'big_sale', is_active: true, assigned_to_salesperson: null, paired_gif_id: null })
   }
 
   const insertPlaceholder = (placeholder: string) => {
@@ -93,6 +147,41 @@ function Messages() {
       }, 0)
     }
   }
+
+  const insertEmoji = (emojiData: EmojiClickData) => {
+    const textarea = document.querySelector('textarea[name="message_text"]') as HTMLTextAreaElement
+    if (textarea) {
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const text = formData.message_text
+      const newText = text.substring(0, start) + emojiData.emoji + text.substring(end)
+      setFormData({ ...formData, message_text: newText })
+      setShowEmojiPicker(false)
+
+      // Set cursor after inserted emoji
+      setTimeout(() => {
+        textarea.focus()
+        textarea.setSelectionRange(start + emojiData.emoji.length, start + emojiData.emoji.length)
+      }, 0)
+    }
+  }
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false)
+      }
+    }
+
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showEmojiPicker])
 
   const saveMessage = async () => {
     try {
@@ -155,10 +244,22 @@ function Messages() {
   }
 
   const renderPreview = (text: string) => {
-    return text.replace(/{name}/g, SAMPLE_NAME).replace(/{amount}/g, SAMPLE_AMOUNT)
+    return text
+      .replace(/{name}/g, SAMPLE_NAME)
+      .replace(/{amount}/g, SAMPLE_AMOUNT)
+      .replace(/{he\/she}/g, 'he')
+      .replace(/{his\/her}/g, 'his')
+      .replace(/{him\/her}/g, 'him')
+      .replace(/{he's\/she's}/g, "he's")
   }
 
-  const filteredMessages = messages.filter((m) => m.category === activeTab)
+  const filteredMessages = messages.filter((m) => {
+    if (m.category !== activeTab) return false
+
+    if (assignmentFilter === 'all') return true
+    if (assignmentFilter === 'generic') return m.assigned_to_salesperson === null
+    return m.assigned_to_salesperson === assignmentFilter
+  })
 
   if (loading) {
     return (
@@ -242,6 +343,31 @@ function Messages() {
         </button>
       </div>
 
+      {/* Filter Dropdown */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <label style={{ color: '#94a3b8', marginRight: '0.5rem' }}>Show:</label>
+        <select
+          value={assignmentFilter}
+          onChange={(e) => setAssignmentFilter(e.target.value)}
+          style={{
+            padding: '0.5rem',
+            backgroundColor: '#1e293b',
+            color: '#f1f5f9',
+            border: '1px solid #334155',
+            borderRadius: '0.375rem',
+            cursor: 'pointer',
+          }}
+        >
+          <option value="all">All Messages</option>
+          <option value="generic">Generic Only</option>
+          {salespeople.map((person) => (
+            <option key={person.id} value={person.name}>
+              For {person.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Message Cards Grid */}
       <div style={{
         display: 'grid',
@@ -296,13 +422,30 @@ function Messages() {
                 marginBottom: '1rem',
                 wordWrap: 'break-word',
               }}>
-                {message.message_text.split(/(\{name\}|\{amount\})/g).map((part, i) => {
+                {message.message_text.split(/(\{name\}|\{amount\}|\{he\/she\}|\{his\/her\}|\{him\/her\}|\{he's\/she's\})/g).map((part, i) => {
                   if (part === '{name}' || part === '{amount}') {
                     return (
                       <span
                         key={i}
                         style={{
                           backgroundColor: '#3b82f6',
+                          color: 'white',
+                          padding: '0.125rem 0.375rem',
+                          borderRadius: '0.25rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                        }}
+                      >
+                        {part}
+                      </span>
+                    )
+                  }
+                  if (part === '{he/she}' || part === '{his/her}' || part === '{him/her}' || part === "{he's/she's}") {
+                    return (
+                      <span
+                        key={i}
+                        style={{
+                          backgroundColor: '#10b981',
                           color: 'white',
                           padding: '0.125rem 0.375rem',
                           borderRadius: '0.25rem',
@@ -329,6 +472,45 @@ function Messages() {
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#cbd5e1', lineHeight: '1.4' }}>
                   {renderPreview(message.message_text)}
+                </div>
+              </div>
+
+              {/* Assignment & Usage Stats */}
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.75rem',
+                backgroundColor: '#0f172a',
+                borderRadius: '0.375rem',
+                fontSize: '0.75rem',
+                color: '#94a3b8',
+              }}>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <strong style={{ color: '#f1f5f9' }}>Assigned to:</strong>{' '}
+                  {message.assigned_to_salesperson ? (
+                    <span style={{ color: '#fbbf24' }}>{message.assigned_to_salesperson}</span>
+                  ) : (
+                    <span style={{ color: '#6ee7b7' }}>Everyone (Generic)</span>
+                  )}
+                </div>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <strong style={{ color: '#f1f5f9' }}>Paired GIF:</strong>{' '}
+                  {message.paired_gif_id ? (
+                    <span style={{ color: '#3b82f6' }}>
+                      {gifs.find((g) => g.id === message.paired_gif_id)?.name || `GIF #${message.paired_gif_id}`}
+                    </span>
+                  ) : (
+                    <span style={{ color: '#94a3b8' }}>Random Selection</span>
+                  )}
+                </div>
+                <div>
+                  <strong style={{ color: '#f1f5f9' }}>Usage:</strong>{' '}
+                  {message.use_count} times
+                  {message.last_used_at && (
+                    <span style={{ marginLeft: '0.5rem' }}>
+                      • Last used {new Date(message.last_used_at).toLocaleDateString()}
+                      {message.last_used_for && ` for ${message.last_used_for}`}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -434,42 +616,208 @@ function Messages() {
               </select>
             </div>
 
+            {/* Assigned To */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', color: '#cbd5e1' }}>
+                Assigned To
+              </label>
+              <select
+                value={formData.assigned_to_salesperson || ''}
+                onChange={(e) => setFormData({ ...formData, assigned_to_salesperson: e.target.value || null })}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  backgroundColor: '#0f172a',
+                  color: '#f1f5f9',
+                  border: '1px solid #475569',
+                  borderRadius: '0.375rem',
+                }}
+              >
+                <option value="">Everyone (Generic)</option>
+                {salespeople.map((person) => (
+                  <option key={person.id} value={person.name}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                Select a specific person to create a custom message just for them
+              </div>
+            </div>
+
+            {/* Paired GIF */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', color: '#cbd5e1' }}>
+                Paired GIF (Optional)
+              </label>
+              <select
+                value={formData.paired_gif_id || ''}
+                onChange={(e) => setFormData({ ...formData, paired_gif_id: e.target.value ? parseInt(e.target.value) : null })}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  backgroundColor: '#0f172a',
+                  color: '#f1f5f9',
+                  border: '1px solid #475569',
+                  borderRadius: '0.375rem',
+                }}
+              >
+                <option value="">Random GIF (Default)</option>
+                {gifs.filter((gif) => gif.is_active).map((gif) => (
+                  <option key={gif.id} value={gif.id}>
+                    {gif.name} - {gif.tags.join(', ')}
+                  </option>
+                ))}
+              </select>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                Pair this message with a specific GIF. If not selected, a random GIF will be chosen.
+              </div>
+              {formData.paired_gif_id && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <img
+                    src={gifs.find((g) => g.id === formData.paired_gif_id)?.url}
+                    alt="Paired GIF preview"
+                    style={{
+                      width: '200px',
+                      height: 'auto',
+                      borderRadius: '0.375rem',
+                      border: '2px solid #3b82f6',
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Message Text */}
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', color: '#cbd5e1' }}>
                 Message Text
               </label>
-              <div style={{ marginBottom: '0.5rem', display: 'flex', gap: '0.5rem' }}>
-                <button
-                  onClick={() => insertPlaceholder('{name}')}
-                  style={{
-                    padding: '0.375rem 0.75rem',
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.25rem',
-                    cursor: 'pointer',
-                    fontSize: '0.75rem',
-                    fontWeight: '600',
-                  }}
-                >
-                  Insert {'{name}'}
-                </button>
-                <button
-                  onClick={() => insertPlaceholder('{amount}')}
-                  style={{
-                    padding: '0.375rem 0.75rem',
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.25rem',
-                    cursor: 'pointer',
-                    fontSize: '0.75rem',
-                    fontWeight: '600',
-                  }}
-                >
-                  Insert {'{amount}'}
-                </button>
+              <div style={{ marginBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => insertPlaceholder('{name}')}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                    }}
+                  >
+                    Insert {'{name}'}
+                  </button>
+                  <button
+                    onClick={() => insertPlaceholder('{amount}')}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                    }}
+                  >
+                    Insert {'{amount}'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      backgroundColor: '#8b5cf6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                    }}
+                  >
+                    😀 Emoji
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
+                  Gender Pronouns (based on person's gender):
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', position: 'relative', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => insertPlaceholder('{he/she}')}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {'{he/she}'}
+                  </button>
+                  <button
+                    onClick={() => insertPlaceholder('{his/her}')}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {'{his/her}'}
+                  </button>
+                  <button
+                    onClick={() => insertPlaceholder('{him/her}')}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {'{him/her}'}
+                  </button>
+                  <button
+                    onClick={() => insertPlaceholder("{he's/she's}")}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {"{he's/she's}"}
+                  </button>
+                  {/* Emoji Picker Popup */}
+                  {showEmojiPicker && (
+                    <div ref={emojiPickerRef} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000, marginTop: '0.5rem' }}>
+                      <EmojiPicker
+                        onEmojiClick={insertEmoji}
+                        theme={Theme.DARK}
+                        width={350}
+                        height={400}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
               <textarea
                 name="message_text"
@@ -495,7 +843,7 @@ function Messages() {
                 color: formData.message_text.length > 500 ? '#f87171' : '#64748b',
                 marginTop: '0.25rem',
               }}>
-                <span>Use {'{name}'} and {'{amount}'} as placeholders</span>
+                <span>Placeholders: {'{name}'}, {'{amount}'}, and gender pronouns</span>
                 <span>{formData.message_text.length} / 500</span>
               </div>
             </div>

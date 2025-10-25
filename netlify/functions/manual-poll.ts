@@ -46,6 +46,21 @@ function formatCustomerName(rawName: string): string {
 }
 
 /**
+ * Get gender-appropriate pronouns
+ */
+function getPronouns(gender: string | null): { subjective: string; possessive: string; objective: string; contraction: string } {
+  switch (gender?.toLowerCase()) {
+    case 'male':
+      return { subjective: 'he', possessive: 'his', objective: 'him', contraction: "he's" };
+    case 'female':
+      return { subjective: 'she', possessive: 'her', objective: 'her', contraction: "she's" };
+    default:
+      // Default to 'they' for 'Other', 'Prefer not to say', or null
+      return { subjective: 'they', possessive: 'their', objective: 'them', contraction: "they've" };
+  }
+}
+
+/**
  * Send celebration message to webhooks
  */
 async function sendToWebhooks(
@@ -187,21 +202,6 @@ function selectWithRecencyWeight<T extends { last_used_at: string | null; use_co
   }
 
   return items[items.length - 1]; // Fallback
-}
-
-/**
- * Get gender-appropriate pronouns
- */
-function getPronouns(gender: string | null): { subjective: string; possessive: string; objective: string; contraction: string } {
-  switch (gender?.toLowerCase()) {
-    case 'male':
-      return { subjective: 'he', possessive: 'his', objective: 'him', contraction: "he's" };
-    case 'female':
-      return { subjective: 'she', possessive: 'her', objective: 'her', contraction: "she's" };
-    default:
-      // Default to 'they' for 'Other', 'Prefer not to say', or null
-      return { subjective: 'they', possessive: 'their', objective: 'them', contraction: "they've" };
-  }
 }
 
 /**
@@ -470,7 +470,7 @@ export const handler: Handler = async (event, _context) => {
   let pollLogId: string | null = null;
 
   try {
-    console.log('🚀 Starting poll-sales function...');
+    console.log('🚀 Starting MANUAL poll function...');
 
     // Create poll log entry (using 'success' status since 'in_progress' is not allowed)
     const { data: pollLogEntry, error: pollLogError } = await supabase

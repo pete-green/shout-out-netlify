@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 const API_URL = '/.netlify/functions';
 
@@ -59,6 +60,21 @@ interface PollStatus {
   };
 }
 
+interface Estimate {
+  id: number;
+  estimate_id: string;
+  salesperson: string;
+  customer_name: string;
+  amount: number;
+  sold_at: string;
+  is_tgl: boolean;
+  is_big_sale: boolean;
+  option_name: string | null;
+  job_number: string;
+  location_id: string;
+  business_unit: string;
+}
+
 export default function Configuration() {
   // Polling interval is hardcoded to match netlify.toml schedule
   const POLLING_INTERVAL_MINUTES = 5;
@@ -97,18 +113,57 @@ export default function Configuration() {
   const [togglingPolling, setTogglingPolling] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [triggeringPoll, setTriggeringPoll] = useState(false);
+  const [expandedPollId, setExpandedPollId] = useState<number | null>(null);
+  const [pollEstimates, setPollEstimates] = useState<{ [key: number]: Estimate[] }>({});
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Reset to page 1 when logs data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pollStatus?.logs.length]);
+
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearingData, setClearingData] = useState(false);
 
   useEffect(() => {
     fetchData();
     fetchPollStatus();
   }, []);
 
-  // Auto-refresh poll status every 10 seconds
+  // Real-time subscription - listen for new poll logs
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchPollStatus();
-    }, 10000);
-    return () => clearInterval(interval);
+    console.log('📡 Setting up Realtime subscription for poll logs');
+
+    const channel = supabase
+      .channel('config-poll-logs')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'poll_logs',
+        },
+        (payload) => {
+          console.log('🔔 New poll log detected via Realtime!', payload);
+          // Refresh poll status when new poll log is added
+          fetchPollStatus();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Realtime subscription active for poll logs');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime subscription error');
+        }
+      });
+
+    return () => {
+      console.log('🔌 Cleaning up Realtime subscription');
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Countdown timer - updates every second
@@ -342,20 +397,80 @@ export default function Configuration() {
 
     setTriggeringPoll(true);
     try {
-      const response = await fetch(`${API_URL}/poll-sales`, {
+      const response = await fetch(`${API_URL}/manual-poll`, {
         method: 'POST',
       });
 
-      if (response.ok) {
-        alert('Poll triggered successfully! Check the logs table for results.');
-        await fetchPollStatus(); // Refresh to show new log
-      } else {
-        throw new Error('Failed to trigger poll');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to trigger poll: ${response.status} - ${errorText}`);
       }
+
+      const data = await response.json();
+      alert(`Poll triggered successfully!\n\nFound: ${data.estimatesFound} estimates\nProcessed: ${data.estimatesProcessed}`);
+      await fetchPollStatus(); // Refresh to show new log
     } catch (err: any) {
       alert(`Error: ${err.message}`);
     } finally {
       setTriggeringPoll(false);
+    }
+  }
+
+  async function fetchPollDetails(pollLogId: number) {
+    // Toggle expansion
+    if (expandedPollId === pollLogId) {
+      setExpandedPollId(null);
+      return;
+    }
+
+    // If we already have the data, just expand
+    if (pollEstimates[pollLogId]) {
+      setExpandedPollId(pollLogId);
+      return;
+    }
+
+    // Fetch the estimates for this poll
+    try {
+      const response = await fetch(`${API_URL}/poll-details?poll_log_id=${pollLogId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch poll details');
+      }
+
+      const data = await response.json();
+      setPollEstimates((prev) => ({
+        ...prev,
+        [pollLogId]: data.estimates,
+      }));
+      setExpandedPollId(pollLogId);
+    } catch (err: any) {
+      alert(`Error fetching poll details: ${err.message}`);
+    }
+  }
+
+  async function clearTestingData() {
+    try {
+      setClearingData(true);
+      const response = await fetch(`${API_URL}/clear-test-data`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear testing data');
+      }
+
+      const data = await response.json();
+
+      alert(`Testing data cleared successfully!\n\nDeleted:\n- ${data.deleted.estimates} estimates\n- ${data.deleted.poll_logs} poll logs\n- ${data.deleted.webhook_logs} webhook logs\n\nThe next poll will detect all of today's sales as new.`);
+
+      // Refresh the poll status to show empty state
+      await fetchPollStatus();
+      setExpandedPollId(null);
+      setPollEstimates({});
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setClearingData(false);
+      setShowClearConfirm(false);
     }
   }
 
@@ -825,13 +940,38 @@ export default function Configuration() {
             </div>
 
             {/* Recent Logs */}
-            <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <h3 style={{ color: '#f1f5f9', fontSize: '1.125rem', fontWeight: '600' }}>
                 Recent Polls
               </h3>
-              <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                Auto-refreshes every 10 seconds
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <span style={{ color: '#10b981', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <span style={{ fontSize: '0.5rem' }}>🟢</span> Live updates
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Show:</label>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1); // Reset to first page
+                    }}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '0.25rem',
+                      color: '#f1f5f9',
+                      fontSize: '0.875rem',
+                    }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {pollStatus.logs.length === 0 ? (
@@ -839,85 +979,323 @@ export default function Configuration() {
                 No polling logs yet
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={tableStyle}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>Time</th>
-                      <th style={thStyle}>Status</th>
-                      <th style={thStyle}>Found</th>
-                      <th style={thStyle}>Processed</th>
-                      <th style={thStyle}>Duration</th>
-                      <th style={thStyle}>Error</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pollStatus.logs.map((log) => (
-                      <tr key={log.id}>
-                        <td style={tdStyle}>
-                          <div style={{ fontSize: '0.875rem' }}>
-                            {new Date(log.created_at).toLocaleString()}
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                            {(() => {
-                              const now = Date.now();
-                              const logTime = new Date(log.created_at).getTime();
-                              const diff = Math.floor((now - logTime) / 1000);
-                              if (diff < 60) return `${diff}s ago`;
-                              if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-                              return `${Math.floor(diff / 3600)}h ago`;
-                            })()}
-                          </div>
-                        </td>
-                        <td style={tdStyle}>
-                          <span
-                            style={{
-                              ...tagStyle(true),
-                              cursor: 'default',
-                              backgroundColor:
-                                log.status === 'success'
-                                  ? '#065f46'
-                                  : log.status === 'error'
-                                  ? '#7f1d1d'
-                                  : log.status === 'skipped'
-                                  ? '#1e293b'
-                                  : '#334155',
-                              color:
-                                log.status === 'success'
-                                  ? '#10b981'
-                                  : log.status === 'error'
-                                  ? '#ef4444'
-                                  : '#64748b',
-                            }}
-                          >
-                            {log.status.toUpperCase()}
-                          </span>
-                        </td>
-                        <td style={tdStyle}>{log.estimates_found}</td>
-                        <td style={tdStyle}>{log.estimates_processed}</td>
-                        <td style={tdStyle}>{log.duration_ms}ms</td>
-                        <td style={tdStyle}>
-                          {log.error_message ? (
+              <>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={tableStyle}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Time</th>
+                        <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Found</th>
+                        <th style={thStyle}>Processed</th>
+                        <th style={thStyle}>Duration</th>
+                        <th style={thStyle}>Error</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        // Calculate pagination
+                        const startIndex = (currentPage - 1) * itemsPerPage;
+                        const endIndex = startIndex + itemsPerPage;
+                        const paginatedLogs = pollStatus.logs.slice(startIndex, endIndex);
+
+                        return paginatedLogs.map((log) => (
+                      <>
+                        <tr
+                          key={log.id}
+                          onClick={() => log.estimates_processed > 0 && fetchPollDetails(log.id)}
+                          style={{
+                            cursor: log.estimates_processed > 0 ? 'pointer' : 'default',
+                            backgroundColor: expandedPollId === log.id ? '#334155' : 'transparent',
+                          }}
+                        >
+                          <td style={tdStyle}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              {log.estimates_processed > 0 && (
+                                <span style={{ fontSize: '0.875rem' }}>
+                                  {expandedPollId === log.id ? '▼' : '▶'}
+                                </span>
+                              )}
+                              <div>
+                                <div style={{ fontSize: '0.875rem' }}>
+                                  {new Date(log.created_at).toLocaleString()}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                  {(() => {
+                                    const now = Date.now();
+                                    const logTime = new Date(log.created_at).getTime();
+                                    const diff = Math.floor((now - logTime) / 1000);
+                                    if (diff < 60) return `${diff}s ago`;
+                                    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                                    return `${Math.floor(diff / 3600)}h ago`;
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={tdStyle}>
                             <span
                               style={{
-                                fontSize: '0.75rem',
-                                color: '#ef4444',
-                                cursor: 'help',
+                                ...tagStyle(true),
+                                cursor: 'default',
+                                backgroundColor:
+                                  log.status === 'success'
+                                    ? '#065f46'
+                                    : log.status === 'error'
+                                    ? '#7f1d1d'
+                                    : log.status === 'skipped'
+                                    ? '#1e293b'
+                                    : '#334155',
+                                color:
+                                  log.status === 'success'
+                                    ? '#10b981'
+                                    : log.status === 'error'
+                                    ? '#ef4444'
+                                    : '#64748b',
                               }}
-                              title={log.error_message}
                             >
-                              {log.error_message.substring(0, 30)}...
+                              {log.status.toUpperCase()}
                             </span>
-                          ) : (
-                            <span style={{ color: '#64748b' }}>-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                          </td>
+                          <td style={tdStyle}>{log.estimates_found}</td>
+                          <td style={tdStyle}>{log.estimates_processed}</td>
+                          <td style={tdStyle}>{log.duration_ms}ms</td>
+                          <td style={tdStyle}>
+                            {log.error_message ? (
+                              <span
+                                style={{
+                                  fontSize: '0.75rem',
+                                  color: '#ef4444',
+                                  cursor: 'help',
+                                }}
+                                title={log.error_message}
+                              >
+                                {log.error_message.substring(0, 30)}...
+                              </span>
+                            ) : (
+                              <span style={{ color: '#64748b' }}>-</span>
+                            )}
+                          </td>
+                        </tr>
+                        {expandedPollId === log.id && pollEstimates[log.id] && (
+                          <tr key={`${log.id}-details`}>
+                            <td colSpan={6} style={{ ...tdStyle, padding: 0, backgroundColor: '#1e293b' }}>
+                              <div style={{ padding: '1rem', borderTop: '2px solid #334155' }}>
+                                <h4 style={{ color: '#f1f5f9', marginBottom: '1rem', fontSize: '1rem' }}>
+                                  Estimates Found ({pollEstimates[log.id].length})
+                                </h4>
+                                {pollEstimates[log.id].length === 0 ? (
+                                  <div style={{ color: '#64748b', textAlign: 'center', padding: '1rem' }}>
+                                    No estimates processed during this poll
+                                  </div>
+                                ) : (
+                                  <div style={{ overflowX: 'auto' }}>
+                                    <table style={tableStyle}>
+                                      <thead>
+                                        <tr>
+                                          <th style={thStyle}>Estimate ID</th>
+                                          <th style={thStyle}>Salesperson</th>
+                                          <th style={thStyle}>Customer</th>
+                                          <th style={thStyle}>Amount</th>
+                                          <th style={thStyle}>Type</th>
+                                          <th style={thStyle}>Sold At</th>
+                                          <th style={thStyle}>Job #</th>
+                                          <th style={thStyle}>Location ID</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {pollEstimates[log.id].map((estimate) => (
+                                          <tr key={estimate.id}>
+                                            <td style={tdStyle}>{estimate.estimate_id}</td>
+                                            <td style={tdStyle}>{estimate.salesperson}</td>
+                                            <td style={tdStyle}>{estimate.customer_name}</td>
+                                            <td style={tdStyle}>
+                                              ${estimate.amount.toLocaleString('en-US', {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2,
+                                              })}
+                                            </td>
+                                            <td style={tdStyle}>
+                                              {estimate.is_tgl && (
+                                                <span
+                                                  style={{
+                                                    ...tagStyle(true),
+                                                    backgroundColor: '#065f46',
+                                                    color: '#10b981',
+                                                    marginRight: '0.25rem',
+                                                  }}
+                                                >
+                                                  TGL
+                                                </span>
+                                              )}
+                                              {estimate.is_big_sale && (
+                                                <span
+                                                  style={{
+                                                    ...tagStyle(true),
+                                                    backgroundColor: '#7c2d12',
+                                                    color: '#fb923c',
+                                                  }}
+                                                >
+                                                  BIG SALE
+                                                </span>
+                                              )}
+                                            </td>
+                                            <td style={tdStyle}>
+                                              {new Date(estimate.sold_at).toLocaleString()}
+                                            </td>
+                                            <td style={tdStyle}>{estimate.job_number}</td>
+                                            <td style={tdStyle}>{estimate.location_id}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination Controls */}
+                {(() => {
+                  const totalLogs = pollStatus.logs.length;
+                  const totalPages = Math.ceil(totalLogs / itemsPerPage);
+                  const startItem = (currentPage - 1) * itemsPerPage + 1;
+                  const endItem = Math.min(currentPage * itemsPerPage, totalLogs);
+
+                  return (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: '1rem',
+                        padding: '0.75rem',
+                        backgroundColor: '#1e293b',
+                        borderRadius: '0.375rem',
+                        flexWrap: 'wrap',
+                        gap: '1rem',
+                      }}
+                    >
+                      {/* Info */}
+                      <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+                        Showing {startItem} to {endItem} of {totalLogs} polls
+                      </div>
+
+                      {/* Navigation */}
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <button
+                          onClick={() => setCurrentPage(1)}
+                          disabled={currentPage === 1}
+                          style={{
+                            padding: '0.5rem 0.75rem',
+                            backgroundColor: currentPage === 1 ? '#1e293b' : '#334155',
+                            color: currentPage === 1 ? '#64748b' : '#f1f5f9',
+                            border: '1px solid #334155',
+                            borderRadius: '0.25rem',
+                            cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                            fontSize: '0.875rem',
+                          }}
+                        >
+                          First
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          style={{
+                            padding: '0.5rem 0.75rem',
+                            backgroundColor: currentPage === 1 ? '#1e293b' : '#334155',
+                            color: currentPage === 1 ? '#64748b' : '#f1f5f9',
+                            border: '1px solid #334155',
+                            borderRadius: '0.25rem',
+                            cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                            fontSize: '0.875rem',
+                          }}
+                        >
+                          Previous
+                        </button>
+                        <span style={{ color: '#f1f5f9', fontSize: '0.875rem', padding: '0 0.5rem' }}>
+                          Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                          onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage === totalPages}
+                          style={{
+                            padding: '0.5rem 0.75rem',
+                            backgroundColor: currentPage === totalPages ? '#1e293b' : '#334155',
+                            color: currentPage === totalPages ? '#64748b' : '#f1f5f9',
+                            border: '1px solid #334155',
+                            borderRadius: '0.25rem',
+                            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                            fontSize: '0.875rem',
+                          }}
+                        >
+                          Next
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage(totalPages)}
+                          disabled={currentPage === totalPages}
+                          style={{
+                            padding: '0.5rem 0.75rem',
+                            backgroundColor: currentPage === totalPages ? '#1e293b' : '#334155',
+                            color: currentPage === totalPages ? '#64748b' : '#f1f5f9',
+                            border: '1px solid #334155',
+                            borderRadius: '0.25rem',
+                            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                            fontSize: '0.875rem',
+                          }}
+                        >
+                          Last
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
             )}
+
+            {/* Clear Testing Data Button */}
+            <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #334155' }}>
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                disabled={clearingData}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#ea580c',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: clearingData ? 'not-allowed' : 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  opacity: clearingData ? 0.5 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+                onMouseEnter={(e) => {
+                  if (!clearingData) {
+                    e.currentTarget.style.backgroundColor = '#dc2626';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }}
+              >
+                <span style={{ fontSize: '1.125rem' }}>🗑️</span>
+                {clearingData ? 'Clearing...' : 'Clear Testing Data'}
+              </button>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem', maxWidth: '600px' }}>
+                Clears all estimates, poll logs, and webhook logs. Use this to test the system with fresh sales data.
+                Your messages, GIFs, salespeople, and settings will remain intact.
+              </div>
+            </div>
           </>
         ) : (
           <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>
@@ -1123,6 +1501,77 @@ export default function Configuration() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Confirmation Modal */}
+      {showClearConfirm && (
+        <div style={modalOverlayStyle} onClick={() => setShowClearConfirm(false)}>
+          <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ color: '#f1f5f9', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '2rem' }}>⚠️</span>
+              Clear Testing Data?
+            </h2>
+
+            <div style={{ backgroundColor: '#7f1d1d', color: '#fecaca', padding: '1rem', borderRadius: '6px', marginBottom: '1.5rem' }}>
+              <strong>Warning:</strong> This action cannot be undone!
+            </div>
+
+            <div style={{ color: '#cbd5e1', marginBottom: '1.5rem', lineHeight: '1.6' }}>
+              <p style={{ marginBottom: '1rem' }}>This will permanently delete:</p>
+              <ul style={{ paddingLeft: '1.5rem', marginBottom: '1rem' }}>
+                <li>All estimates (sales records)</li>
+                <li>All poll logs (polling history)</li>
+                <li>All webhook logs (Google Chat delivery history)</li>
+              </ul>
+              <p style={{ marginBottom: '1rem' }}>
+                <strong style={{ color: '#fbbf24' }}>This will be reset:</strong>
+              </p>
+              <ul style={{ paddingLeft: '1.5rem', marginBottom: '1rem' }}>
+                <li>Recently processed IDs (cleared)</li>
+                <li>Last poll timestamp (reset to 12:01 AM today)</li>
+                <li>Message usage statistics (reset to 0)</li>
+                <li>GIF usage statistics (reset to 0)</li>
+              </ul>
+              <p style={{ marginBottom: '1rem' }}>
+                <strong style={{ color: '#10b981' }}>These will remain intact:</strong>
+              </p>
+              <ul style={{ paddingLeft: '1.5rem' }}>
+                <li>Messages and GIFs</li>
+                <li>Salespeople</li>
+                <li>Webhook configurations</li>
+                <li>All settings</li>
+              </ul>
+              <p style={{ marginTop: '1rem', fontStyle: 'italic', color: '#94a3b8' }}>
+                The next poll will find all of today's sales and send them to Google Chat.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                style={{
+                  ...buttonStyle,
+                  flex: 1,
+                  backgroundColor: '#334155',
+                }}
+                onClick={() => setShowClearConfirm(false)}
+                disabled={clearingData}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  ...buttonStyle,
+                  flex: 1,
+                  backgroundColor: '#dc2626',
+                }}
+                onClick={clearTestingData}
+                disabled={clearingData}
+              >
+                {clearingData ? 'Clearing...' : 'Yes, Clear All Data'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -32,6 +32,7 @@ interface Salesperson {
   st_active: boolean
   business_unit: string | null
   headshot_url: string | null
+  gender: string | null
   is_active: boolean
   last_synced_at: string | null
   created_at: string
@@ -51,8 +52,11 @@ function People() {
   const [editForm, setEditForm] = useState({
     business_unit: '',
     headshot_url: '',
+    gender: '',
     is_active: true,
   })
+  const [photoModalUrl, setPhotoModalUrl] = useState<string | null>(null)
+  const [photoModalName, setPhotoModalName] = useState<string>('')
 
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('name')
@@ -164,13 +168,14 @@ function People() {
     setEditForm({
       business_unit: person.business_unit || '',
       headshot_url: person.headshot_url || '',
+      gender: person.gender || '',
       is_active: person.is_active,
     })
   }
 
   const cancelEdit = () => {
     setEditingId(null)
-    setEditForm({ business_unit: '', headshot_url: '', is_active: true })
+    setEditForm({ business_unit: '', headshot_url: '', gender: '', is_active: true })
   }
 
   const saveEdit = async (id: number) => {
@@ -372,7 +377,7 @@ function People() {
               >
                 Business Unit{renderSortIcon('business_unit')}
               </th>
-              <th style={tableHeaderStyle}>Headshot URL</th>
+              <th style={tableHeaderStyle}>Gender</th>
               <th
                 onClick={() => handleSort('is_active')}
                 style={{ ...tableHeaderStyle, cursor: 'pointer', userSelect: 'none' }}
@@ -393,12 +398,26 @@ function People() {
                       <img
                         src={person.headshot_url}
                         alt={person.name}
+                        onClick={() => {
+                          setPhotoModalUrl(person.headshot_url)
+                          setPhotoModalName(person.name)
+                        }}
                         style={{
                           width: '60px',
                           height: '60px',
                           objectFit: 'cover',
                           borderRadius: '50%',
                           border: '2px solid #475569',
+                          cursor: 'pointer',
+                          transition: 'transform 0.2s, border-color 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.1)'
+                          e.currentTarget.style.borderColor = '#3b82f6'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)'
+                          e.currentTarget.style.borderColor = '#475569'
                         }}
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="60" height="60"%3E%3Ccircle cx="30" cy="30" r="30" fill="%23334155"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%2394a3b8" font-size="24"%3E' + person.name.charAt(0).toUpperCase() + '%3C/text%3E%3C/svg%3E'
@@ -437,10 +456,67 @@ function People() {
                   </td>
                   <td style={tableCellStyle}>
                     {isEditing ? (
+                      <div>
+                        <div style={{ marginBottom: '0.5rem' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
+                            Business Unit
+                          </label>
+                          <select
+                            value={editForm.business_unit}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, business_unit: e.target.value })
+                            }
+                            style={{
+                              padding: '0.5rem',
+                              backgroundColor: '#0f172a',
+                              color: '#f1f5f9',
+                              border: '1px solid #475569',
+                              borderRadius: '0.25rem',
+                              width: '100%',
+                            }}
+                          >
+                            <option value="">Select...</option>
+                            {BUSINESS_UNITS.map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
+                            Headshot URL
+                          </label>
+                          <input
+                            type="text"
+                            value={editForm.headshot_url}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, headshot_url: e.target.value })
+                            }
+                            placeholder="https://..."
+                            style={{
+                              padding: '0.5rem',
+                              backgroundColor: '#0f172a',
+                              color: '#f1f5f9',
+                              border: '1px solid #475569',
+                              borderRadius: '0.25rem',
+                              width: '100%',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : person.business_unit ? (
+                      person.business_unit
+                    ) : (
+                      <span style={{ color: '#f59e0b', fontWeight: '600' }}>Not set</span>
+                    )}
+                  </td>
+                  <td style={tableCellStyle}>
+                    {isEditing ? (
                       <select
-                        value={editForm.business_unit}
+                        value={editForm.gender}
                         onChange={(e) =>
-                          setEditForm({ ...editForm, business_unit: e.target.value })
+                          setEditForm({ ...editForm, gender: e.target.value })
                         }
                         style={{
                           padding: '0.5rem',
@@ -452,47 +528,15 @@ function People() {
                         }}
                       >
                         <option value="">Select...</option>
-                        {BUSINESS_UNITS.map((unit) => (
-                          <option key={unit} value={unit}>
-                            {unit}
-                          </option>
-                        ))}
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                        <option value="Prefer not to say">Prefer not to say</option>
                       </select>
-                    ) : person.business_unit ? (
-                      person.business_unit
+                    ) : person.gender ? (
+                      person.gender
                     ) : (
-                      <span style={{ color: '#f59e0b', fontWeight: '600' }}>Not set</span>
-                    )}
-                  </td>
-                  <td style={tableCellStyle}>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editForm.headshot_url}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, headshot_url: e.target.value })
-                        }
-                        placeholder="https://..."
-                        style={{
-                          padding: '0.5rem',
-                          backgroundColor: '#0f172a',
-                          color: '#f1f5f9',
-                          border: '1px solid #475569',
-                          borderRadius: '0.25rem',
-                          width: '100%',
-                        }}
-                      />
-                    ) : person.headshot_url ? (
-                      <a
-                        href={person.headshot_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#3b82f6' }}
-                      >
-                        View
-                      </a>
-                    ) : (
-                      <span style={{ color: '#64748b' }}>Not set</span>
+                      <span style={{ color: '#64748b' }}>—</span>
                     )}
                   </td>
                   <td style={tableCellStyle}>
@@ -573,6 +617,84 @@ function People() {
       <div style={{ marginTop: '1rem', color: '#64748b', fontSize: '0.875rem' }}>
         Showing {filteredPeople.length} of {salespeople.length} people
       </div>
+
+      {/* Photo Modal */}
+      {photoModalUrl && (
+        <div
+          onClick={() => setPhotoModalUrl(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            cursor: 'pointer',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}
+          >
+            <div style={{
+              marginBottom: '1rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: '#1e293b',
+              borderRadius: '0.5rem',
+              border: '1px solid #475569',
+            }}>
+              <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '1.25rem' }}>
+                {photoModalName}
+              </h3>
+            </div>
+            <img
+              src={photoModalUrl}
+              alt={photoModalName}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '80vh',
+                borderRadius: '0.5rem',
+                border: '3px solid #3b82f6',
+                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+              }}
+            />
+            <button
+              onClick={() => setPhotoModalUrl(null)}
+              style={{
+                position: 'absolute',
+                top: '-1rem',
+                right: '-1rem',
+                width: '3rem',
+                height: '3rem',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                fontSize: '1.5rem',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

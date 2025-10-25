@@ -112,6 +112,7 @@ export const handler: Handler = async (event, _context) => {
           url: newGif.url,
           tags: newGif.tags,
           is_active: newGif.is_active !== undefined ? newGif.is_active : true,
+          assigned_to_salesperson: newGif.assigned_to_salesperson || null,
         })
         .select()
         .single();
@@ -158,7 +159,7 @@ export const handler: Handler = async (event, _context) => {
       }
 
       // Only allow updating specific fields
-      const allowedFields = ['name', 'url', 'tags', 'is_active'];
+      const allowedFields = ['name', 'url', 'tags', 'is_active', 'assigned_to_salesperson'];
       const updateData: any = {};
 
       for (const field of allowedFields) {

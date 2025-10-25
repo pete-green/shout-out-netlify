@@ -6,16 +6,27 @@ interface GIF {
   url: string
   tags: string[]
   is_active: boolean
+  assigned_to_salesperson: string | null
+  last_used_at: string | null
+  last_used_for: string | null
+  use_count: number
   created_at: string
   updated_at: string
 }
 
+interface Salesperson {
+  id: number
+  name: string
+}
+
 function GIFs() {
   const [gifs, setGifs] = useState<GIF[]>([])
+  const [salespeople, setSalespeople] = useState<Salesperson[]>([])
   const [filteredGifs, setFilteredGifs] = useState<GIF[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filterTag, setFilterTag] = useState<'all' | 'tgl' | 'big_sale' | 'both'>('all')
+  // const [assignmentFilter, setAssignmentFilter] = useState<string>('all') // TODO: Add assignment UI
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingGif, setEditingGif] = useState<GIF | null>(null)
   const [formData, setFormData] = useState({
@@ -23,17 +34,30 @@ function GIFs() {
     url: '',
     tags: [] as string[],
     is_active: true,
+    assigned_to_salesperson: null as string | null,
   })
   const [previewUrl, setPreviewUrl] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
 
   useEffect(() => {
     fetchGifs()
+    fetchSalespeople()
   }, [])
 
   useEffect(() => {
     applyFilter()
   }, [gifs, filterTag])
+
+  const fetchSalespeople = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/salespeople')
+      if (!response.ok) throw new Error('Failed to fetch salespeople')
+      const data = await response.json()
+      setSalespeople(data)
+    } catch (err: any) {
+      console.error('Failed to fetch salespeople:', err.message)
+    }
+  }
 
   const fetchGifs = async () => {
     try {
@@ -53,6 +77,7 @@ function GIFs() {
   const applyFilter = () => {
     let filtered = gifs
 
+    // Filter by tag
     if (filterTag === 'tgl') {
       filtered = gifs.filter((g) => g.tags.includes('tgl') && !g.tags.includes('big_sale'))
     } else if (filterTag === 'big_sale') {
@@ -61,12 +86,21 @@ function GIFs() {
       filtered = gifs.filter((g) => g.tags.includes('tgl') && g.tags.includes('big_sale'))
     }
 
+    // Filter by assignment - TODO: Re-enable when assignment UI is added
+    // if (assignmentFilter !== 'all') {
+    //   if (assignmentFilter === 'generic') {
+    //     filtered = filtered.filter((g) => g.assigned_to_salesperson === null)
+    //   } else {
+    //     filtered = filtered.filter((g) => g.assigned_to_salesperson === assignmentFilter)
+    //   }
+    // }
+
     setFilteredGifs(filtered)
   }
 
   const openAddModal = () => {
     setEditingGif(null)
-    setFormData({ name: '', url: '', tags: [], is_active: true })
+    setFormData({ name: '', url: '', tags: [], is_active: true, assigned_to_salesperson: null })
     setPreviewUrl('')
     setIsModalOpen(true)
   }
@@ -78,6 +112,7 @@ function GIFs() {
       url: gif.url,
       tags: [...gif.tags],
       is_active: gif.is_active,
+      assigned_to_salesperson: gif.assigned_to_salesperson,
     })
     setPreviewUrl(gif.url)
     setIsModalOpen(true)
@@ -86,7 +121,7 @@ function GIFs() {
   const closeModal = () => {
     setIsModalOpen(false)
     setEditingGif(null)
-    setFormData({ name: '', url: '', tags: [], is_active: true })
+    setFormData({ name: '', url: '', tags: [], is_active: true, assigned_to_salesperson: null })
     setPreviewUrl('')
   }
 
@@ -265,6 +300,7 @@ function GIFs() {
               <th style={tableHeaderStyle}>Name</th>
               <th style={tableHeaderStyle}>URL</th>
               <th style={{ ...tableHeaderStyle, width: '150px' }}>Tags</th>
+              <th style={{ ...tableHeaderStyle, width: '180px' }}>Assigned To & Usage</th>
               <th style={{ ...tableHeaderStyle, width: '80px' }}>Active</th>
               <th style={{ ...tableHeaderStyle, width: '150px' }}>Actions</th>
             </tr>
@@ -329,6 +365,25 @@ function GIFs() {
                       }}>
                         Big Sale
                       </span>
+                    )}
+                  </div>
+                </td>
+                <td style={tableCellStyle}>
+                  <div style={{ fontSize: '0.75rem' }}>
+                    {gif.assigned_to_salesperson ? (
+                      <>
+                        <div style={{ color: '#fbbf24', fontWeight: '600' }}>
+                          {gif.assigned_to_salesperson}
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.7rem', marginTop: '0.25rem' }}>
+                          Used {gif.use_count} times
+                          {gif.last_used_at && (
+                            ` • Last: ${new Date(gif.last_used_at).toLocaleDateString()}`
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <span style={{ color: '#6ee7b7' }}>Everyone</span>
                     )}
                   </div>
                 </td>
@@ -536,6 +591,35 @@ function GIFs() {
                   />
                   <span style={{ fontSize: '0.875rem', color: '#cbd5e1' }}>Use for Big Sales</span>
                 </label>
+              </div>
+            </div>
+
+            {/* Assigned To */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem', color: '#cbd5e1' }}>
+                Assigned To
+              </label>
+              <select
+                value={formData.assigned_to_salesperson || ''}
+                onChange={(e) => setFormData({ ...formData, assigned_to_salesperson: e.target.value || null })}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  backgroundColor: '#0f172a',
+                  color: '#f1f5f9',
+                  border: '1px solid #475569',
+                  borderRadius: '0.375rem',
+                }}
+              >
+                <option value="">Everyone (Generic)</option>
+                {salespeople.map((person) => (
+                  <option key={person.id} value={person.name}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                Select a specific person to create a custom GIF just for them
               </div>
             </div>
 
