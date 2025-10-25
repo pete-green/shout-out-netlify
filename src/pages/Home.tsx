@@ -144,6 +144,14 @@ function Home() {
     });
   };
 
+  // Format date string (YYYY-MM-DD) to local date display
+  // Avoids timezone conversion issues by treating the date as local
+  const formatDateString = (dateStr: string): string => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    return date.toLocaleDateString();
+  };
+
   return (
     <div
       style={{
@@ -273,8 +281,8 @@ function Home() {
             </div>
             <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
               {startDate === endDate
-                ? `for ${new Date(startDate).toLocaleDateString()}`
-                : `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`}
+                ? `for ${formatDateString(startDate)}`
+                : `${formatDateString(startDate)} - ${formatDateString(endDate)}`}
             </div>
           </div>
 
