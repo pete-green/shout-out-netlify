@@ -15,6 +15,13 @@ interface DepartmentStats {
   topSalesperson: TopSalesperson | null;
 }
 
+interface TGLLeader {
+  name: string;
+  tglCount: number;
+  department: string;
+  headshot_url: string | null;
+}
+
 interface DashboardData {
   dateRange: {
     start: string;
@@ -22,6 +29,8 @@ interface DashboardData {
   };
   companyTotal: number;
   departments: DepartmentStats[];
+  tglTotal: number;
+  tglLeaders: TGLLeader[];
   timestamp: string;
 }
 
@@ -262,27 +271,59 @@ function Home() {
       {/* Dashboard Content */}
       {data && (
         <>
-          {/* Company Total Card */}
+          {/* Top Cards: Company Total & TGL Total */}
           <div
             style={{
-              backgroundColor: '#1e293b',
-              border: '2px solid #3b82f6',
-              borderRadius: '0.75rem',
-              padding: '2rem',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '1.5rem',
               marginBottom: '2rem',
-              textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: '1rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
-              Company Total
+            {/* Company Total Card */}
+            <div
+              style={{
+                backgroundColor: '#1e293b',
+                border: '2px solid #3b82f6',
+                borderRadius: '0.75rem',
+                padding: '2rem',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '1rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                Company Total
+              </div>
+              <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#3b82f6' }}>
+                {formatCurrency(data.companyTotal)}
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
+                {startDate === endDate
+                  ? `for ${formatDateString(startDate)}`
+                  : `${formatDateString(startDate)} - ${formatDateString(endDate)}`}
+              </div>
             </div>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#3b82f6' }}>
-              {formatCurrency(data.companyTotal)}
-            </div>
-            <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
-              {startDate === endDate
-                ? `for ${formatDateString(startDate)}`
-                : `${formatDateString(startDate)} - ${formatDateString(endDate)}`}
+
+            {/* TGL Total Card */}
+            <div
+              style={{
+                backgroundColor: '#1e293b',
+                border: '2px solid #10b981',
+                borderRadius: '0.75rem',
+                padding: '2rem',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '1rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                Total TGLs
+              </div>
+              <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#10b981' }}>
+                {data.tglTotal}
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
+                {startDate === endDate
+                  ? `for ${formatDateString(startDate)}`
+                  : `${formatDateString(startDate)} - ${formatDateString(endDate)}`}
+              </div>
             </div>
           </div>
 
@@ -338,6 +379,116 @@ function Home() {
               ))}
             </div>
           </div>
+
+          {/* TGL Leaderboard */}
+          {data.tglLeaders && data.tglLeaders.length > 0 && (
+            <div style={{ marginBottom: '3rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
+                🎯 TGL Leaderboard
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {data.tglLeaders.map((leader, index) => (
+                  <div
+                    key={leader.name}
+                    style={{
+                      backgroundColor: '#1e293b',
+                      border: index === 0 ? '2px solid #10b981' : '1px solid #334155',
+                      borderRadius: '0.5rem',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '1rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      {/* Rank badge */}
+                      <div
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          backgroundColor: index === 0 ? '#10b981' : '#334155',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.25rem',
+                          fontWeight: 'bold',
+                          color: index === 0 ? '#ffffff' : '#94a3b8',
+                        }}
+                      >
+                        {index + 1}
+                      </div>
+
+                      {/* Headshot or initial */}
+                      {leader.headshot_url ? (
+                        <img
+                          src={leader.headshot_url}
+                          alt={leader.name}
+                          style={{
+                            width: '60px',
+                            height: '60px',
+                            objectFit: 'cover',
+                            borderRadius: '50%',
+                            border: '2px solid #10b981',
+                          }}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '60px',
+                            height: '60px',
+                            borderRadius: '50%',
+                            backgroundColor: '#334155',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.5rem',
+                            fontWeight: 'bold',
+                            color: '#94a3b8',
+                            border: '2px solid #10b981',
+                          }}
+                        >
+                          {leader.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+
+                      {/* Name and department */}
+                      <div>
+                        <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
+                          {leader.name}
+                        </div>
+                        <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                          {leader.department}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* TGL count */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div
+                        style={{
+                          fontSize: '2rem',
+                          fontWeight: 'bold',
+                          color: '#10b981',
+                        }}
+                      >
+                        {leader.tglCount}
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                        {leader.tglCount === 1 ? 'TGL' : 'TGLs'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Top Performers */}
           <div>

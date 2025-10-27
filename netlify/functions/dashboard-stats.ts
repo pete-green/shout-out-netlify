@@ -24,6 +24,13 @@ interface DepartmentStats {
   } | null;
 }
 
+interface TGLLeader {
+  name: string;
+  tglCount: number;
+  department: string;
+  headshot_url: string | null;
+}
+
 /**
  * Dashboard Statistics API
  * GET /?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
@@ -180,6 +187,50 @@ export const handler: Handler = async (event, _context) => {
       // Convert to array for response
       const departmentArray = departments.map(dept => departmentStats[dept]);
 
+      // ===== TGL STATISTICS =====
+
+      // Query TGL data using the same RPC function, then filter for TGLs
+      const { data: allEstimatesData, error: estimatesError } = await supabase
+        .from('estimates')
+        .select('id, salesperson, is_tgl')
+        .eq('is_tgl', true)
+        .gte('sold_at', `${startDate}T00:00:00`)
+        .lte('sold_at', `${endDate}T23:59:59.999`);
+
+      if (estimatesError) {
+        console.error('❌ Error fetching TGL data:', estimatesError);
+        // Don't fail the whole request, just return 0 TGLs
+      }
+
+      console.log(`✅ Found ${allEstimatesData?.length || 0} TGLs in date range`);
+
+      let tglTotal = 0;
+      const tglBySalesperson: { [person: string]: number } = {};
+
+      // Count TGLs by salesperson
+      allEstimatesData?.forEach((estimate: any) => {
+        const salesperson = estimate.salesperson;
+        if (salesperson) {
+          tglTotal++;
+          tglBySalesperson[salesperson] = (tglBySalesperson[salesperson] || 0) + 1;
+        }
+      });
+
+      // Build TGL leaders list (only people with TGLs > 0)
+      const tglLeaders: TGLLeader[] = Object.keys(tglBySalesperson)
+        .map(person => {
+          const personData = salespersonMap[person];
+          return {
+            name: person,
+            tglCount: tglBySalesperson[person],
+            department: personData?.business_unit || 'Unknown',
+            headshot_url: personData?.headshot_url || null,
+          };
+        })
+        .sort((a, b) => b.tglCount - a.tglCount); // Sort by TGL count descending
+
+      console.log(`✅ TGL Leaders: ${tglLeaders.length} people with TGLs`);
+
       const result = {
         dateRange: {
           start: startDate,
@@ -187,10 +238,12 @@ export const handler: Handler = async (event, _context) => {
         },
         companyTotal,
         departments: departmentArray,
+        tglTotal,
+        tglLeaders,
         timestamp: new Date().toISOString(),
       };
 
-      console.log(`✅ Dashboard stats calculated: Company total $${companyTotal.toFixed(2)}`);
+      console.log(`✅ Dashboard stats calculated: Company total $${companyTotal.toFixed(2)}, TGLs: ${tglTotal}`);
 
       return createResponse(200, result);
     }
