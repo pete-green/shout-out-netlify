@@ -30,6 +30,7 @@ interface GIF {
 
 const SAMPLE_NAME = 'Richard Sinnott'
 const SAMPLE_AMOUNT = '1,234.56'
+const SAMPLE_CUSTOMER = 'John Smith'
 
 function Messages() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -247,6 +248,7 @@ function Messages() {
     return text
       .replace(/{name}/g, SAMPLE_NAME)
       .replace(/{amount}/g, SAMPLE_AMOUNT)
+      .replace(/{customer}/g, SAMPLE_CUSTOMER)
       .replace(/{he\/she}/g, 'he')
       .replace(/{his\/her}/g, 'his')
       .replace(/{him\/her}/g, 'him')
@@ -422,8 +424,8 @@ function Messages() {
                 marginBottom: '1rem',
                 wordWrap: 'break-word',
               }}>
-                {message.message_text.split(/(\{name\}|\{amount\}|\{he\/she\}|\{his\/her\}|\{him\/her\}|\{he's\/she's\})/g).map((part, i) => {
-                  if (part === '{name}' || part === '{amount}') {
+                {message.message_text.split(/(\{name\}|\{amount\}|\{customer\}|\{he\/she\}|\{his\/her\}|\{him\/her\}|\{he's\/she's\})/g).map((part, i) => {
+                  if (part === '{name}' || part === '{amount}' || part === '{customer}') {
                     return (
                       <span
                         key={i}
@@ -726,6 +728,21 @@ function Messages() {
                     Insert {'{amount}'}
                   </button>
                   <button
+                    onClick={() => insertPlaceholder('{customer}')}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                    }}
+                  >
+                    Insert {'{customer}'}
+                  </button>
+                  <button
                     type="button"
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                     style={{
@@ -843,7 +860,7 @@ function Messages() {
                 color: formData.message_text.length > 500 ? '#f87171' : '#64748b',
                 marginTop: '0.25rem',
               }}>
-                <span>Placeholders: {'{name}'}, {'{amount}'}, and gender pronouns</span>
+                <span>Placeholders: {'{name}'}, {'{customer}'}, {'{amount}'}, and gender pronouns</span>
                 <span>{formData.message_text.length} / 500</span>
               </div>
             </div>

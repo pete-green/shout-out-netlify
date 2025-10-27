@@ -428,6 +428,7 @@ async function generateMessage(
 
   const message = selectedMessage.message_text
     .replace(/{name}/g, salesperson)
+    .replace(/{customer}/g, customerName)
     .replace(/{amount}/g, amountFormatted)
     .replace(/{he\/she}/g, pronouns.subjective)
     .replace(/{his\/her}/g, pronouns.possessive)
