@@ -35,6 +35,7 @@ interface EstimateItem {
 
 interface Estimate {
   id: string;
+  name: string;
   soldOn: string;
   soldBy: number;
   customerId: number;
@@ -194,20 +195,10 @@ export const handler: Handler = async (event, _context) => {
           const customerName = formatCustomerName(rawCustomerName);
           const amount = estimate.subtotal || 0;
           const soldAt = estimate.soldOn;
+          const estimateName = estimate.name || '';
 
-          // Find TGL option in items
-          let optionName = '';
-          if (estimate.items && Array.isArray(estimate.items)) {
-            const optionItem = estimate.items.find((item: EstimateItem) =>
-              item.skuName?.includes(TGL_OPTION_NAME)
-            );
-            if (optionItem) {
-              optionName = optionItem.skuName;
-            }
-          }
-
-          // Determine if TGL or Big Sale
-          const isTGL = amount === 0 && optionName.includes(TGL_OPTION_NAME);
+          // Check if TGL: "Option C - System Update" appears in estimate name
+          const isTGL = estimateName.includes(TGL_OPTION_NAME);
           const isBigSale = amount > BIG_SALE_THRESHOLD;
 
           console.log(`  ${existingIds.has(estimateId) ? '🔄' : '✨'} ${estimateId}: ${salesperson}, $${amount.toFixed(2)}, TGL:${isTGL}, BigSale:${isBigSale}`);
@@ -227,7 +218,7 @@ export const handler: Handler = async (event, _context) => {
               customer_name: customerName,
               amount,
               sold_at: soldAt,
-              option_name: optionName,
+              option_name: estimateName,
               is_tgl: isTGL,
               is_big_sale: isBigSale,
               raw_data: estimate,

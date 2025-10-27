@@ -23,6 +23,7 @@ interface EstimateItem {
 
 interface Estimate {
   id: string;
+  name: string;
   soldOn: string;
   soldBy: number;
   customerId: number;
@@ -561,20 +562,10 @@ export const handler: Handler = async (event, _context) => {
         const customerName = formatCustomerName(rawCustomerName);
         const amount = estimate.subtotal || 0;
         const soldAt = estimate.soldOn;
+        const estimateName = estimate.name || '';
 
-        // Find "Option C - System Update" in items
-        let optionName = '';
-        if (estimate.items && Array.isArray(estimate.items)) {
-          const optionItem = estimate.items.find((item: EstimateItem) =>
-            item.skuName?.includes(TGL_OPTION_NAME)
-          );
-          if (optionItem) {
-            optionName = optionItem.skuName;
-          }
-        }
-
-        // Determine if TGL or Big Sale
-        const isTGL = amount === 0 && optionName.includes(TGL_OPTION_NAME);
+        // Check if TGL: "Option C - System Update" appears in estimate name
+        const isTGL = estimateName.includes(TGL_OPTION_NAME);
         const isBigSale = amount > BIG_SALE_THRESHOLD;
 
         console.log(
@@ -590,7 +581,7 @@ export const handler: Handler = async (event, _context) => {
             customer_name: customerName,
             amount,
             sold_at: soldAt,
-            option_name: optionName,
+            option_name: estimateName,
             is_tgl: isTGL,
             is_big_sale: isBigSale,
             raw_data: estimate,
@@ -605,33 +596,69 @@ export const handler: Handler = async (event, _context) => {
           continue;
         }
 
-        // Only send celebrations for TGL or Big Sales
+        // Send celebrations for TGL and/or Big Sales
         if (isTGL || isBigSale) {
-          // Generate message
-          const { message, gifUrl, type } = await generateMessage(
-            salesperson,
-            amount,
-            customerName,
-            isTGL
-          );
+          let celebrationCount = 0;
 
-          // Send to webhooks
-          await sendToWebhooks(message, gifUrl, type, estimateId);
+          // Send TGL celebration if applicable
+          if (isTGL) {
+            const { message, gifUrl, type } = await generateMessage(
+              salesperson,
+              amount,
+              customerName,
+              true // TGL celebration
+            );
 
-          // Insert notification
-          const { error: notificationError } = await supabase.from('notifications').insert({
-            estimate_id: insertedEstimate.id,
-            type,
-            message,
-            gif_url: gifUrl,
-            posted_successfully: false,
-          });
+            // Send to webhooks
+            await sendToWebhooks(message, gifUrl, type, estimateId);
 
-          if (notificationError) {
-            console.error(`❌ Failed to insert notification:`, notificationError);
+            // Insert notification
+            const { error: notificationError } = await supabase.from('notifications').insert({
+              estimate_id: insertedEstimate.id,
+              type,
+              message,
+              gif_url: gifUrl,
+              posted_successfully: false,
+            });
+
+            if (notificationError) {
+              console.error(`❌ Failed to insert TGL notification:`, notificationError);
+            }
+
+            celebrationCount++;
+            console.log(`🎉 Sent TGL celebration for estimate ${estimateId}`);
           }
 
-          console.log(`🎉 Sent celebration for estimate ${estimateId}`);
+          // Send Big Sale celebration if applicable
+          if (isBigSale) {
+            const { message, gifUrl, type } = await generateMessage(
+              salesperson,
+              amount,
+              customerName,
+              false // Big Sale celebration
+            );
+
+            // Send to webhooks
+            await sendToWebhooks(message, gifUrl, type, estimateId);
+
+            // Insert notification
+            const { error: notificationError } = await supabase.from('notifications').insert({
+              estimate_id: insertedEstimate.id,
+              type,
+              message,
+              gif_url: gifUrl,
+              posted_successfully: false,
+            });
+
+            if (notificationError) {
+              console.error(`❌ Failed to insert Big Sale notification:`, notificationError);
+            }
+
+            celebrationCount++;
+            console.log(`🎉 Sent Big Sale celebration for estimate ${estimateId}`);
+          }
+
+          console.log(`✨ Total celebrations sent: ${celebrationCount}`);
         } else {
           console.log(`📝 Saved estimate ${estimateId} (no celebration sent)`);
         }
