@@ -71,11 +71,13 @@ export const handler: Handler = async (event, _context) => {
 
       // Use raw SQL with AT TIME ZONE to properly filter by Eastern Time
       // This query filters sold_at timestamps by their Eastern Time date, not UTC
+      // IMPORTANT: Must set limit to retrieve all records (default is 1000)
       const { data: salesData, error: salesError } = await supabase
         .rpc('get_sales_by_date_range', {
           p_start_date: startDate,
           p_end_date: endDate
-        });
+        })
+        .limit(10000); // Ensure we get all records, not just first 1000
 
       if (salesError) {
         console.error('❌ Error fetching sales data:', salesError);
@@ -87,7 +89,8 @@ export const handler: Handler = async (event, _context) => {
       // Fetch all salespeople to get business units and headshots
       const { data: salespeople, error: salespeopleError } = await supabase
         .from('salespeople')
-        .select('name, business_unit, headshot_url');
+        .select('name, business_unit, headshot_url')
+        .limit(1000); // Ensure we get all salespeople
 
       if (salespeopleError) {
         console.error('❌ Error fetching salespeople:', salespeopleError);
