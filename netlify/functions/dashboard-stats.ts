@@ -67,17 +67,18 @@ export const handler: Handler = async (event, _context) => {
         });
       }
 
-      console.log(`📊 Fetching dashboard stats for ${startDate} to ${endDate}`);
+      console.log(`📊 Fetching dashboard stats for ${startDate} to ${endDate} (v2)`);
 
       // Use raw SQL with AT TIME ZONE to properly filter by Eastern Time
       // This query filters sold_at timestamps by their Eastern Time date, not UTC
-      // IMPORTANT: Must set limit to retrieve all records (default is 1000)
+      // CRITICAL: Supabase JS client has a default 1000 row limit on ALL queries including RPC
+      // Must explicitly set .limit(10000) to retrieve all records
       const { data: salesData, error: salesError } = await supabase
         .rpc('get_sales_by_date_range', {
           p_start_date: startDate,
           p_end_date: endDate
         })
-        .limit(10000); // Ensure we get all records, not just first 1000
+        .limit(10000);
 
       if (salesError) {
         console.error('❌ Error fetching sales data:', salesError);
@@ -85,6 +86,7 @@ export const handler: Handler = async (event, _context) => {
       }
 
       console.log(`✅ Found ${salesData?.length || 0} paid sales in date range`);
+      console.log(`🔍 DEBUG: RPC called with p_limit=10000, received ${salesData?.length || 0} records`);
 
       // Fetch all salespeople to get business units and headshots
       const { data: salespeople, error: salespeopleError } = await supabase
