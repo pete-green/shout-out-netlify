@@ -189,45 +189,39 @@ export const handler: Handler = async (event, _context) => {
 
       // ===== TGL STATISTICS =====
 
-      // Query TGL data using the same RPC function, then filter for TGLs
-      const { data: allEstimatesData, error: estimatesError } = await supabase
-        .from('estimates')
-        .select('id, salesperson, is_tgl')
-        .eq('is_tgl', true)
-        .gte('sold_at', `${startDate}T00:00:00`)
-        .lte('sold_at', `${endDate}T23:59:59.999`);
+      // Use database aggregation to count TGLs by salesperson (much more efficient!)
+      // This avoids loading thousands of records into memory
+      const { data: tglAggregateData, error: estimatesError } = await supabase
+        .rpc('get_tgl_counts_by_salesperson', {
+          p_start_date: startDate,
+          p_end_date: endDate
+        });
 
       if (estimatesError) {
         console.error('❌ Error fetching TGL data:', estimatesError);
         // Don't fail the whole request, just return 0 TGLs
       }
 
-      console.log(`✅ Found ${allEstimatesData?.length || 0} TGLs in date range`);
+      console.log(`✅ Found TGL data for ${tglAggregateData?.length || 0} salespeople`);
 
       let tglTotal = 0;
-      const tglBySalesperson: { [person: string]: number } = {};
 
-      // Count TGLs by salesperson
-      allEstimatesData?.forEach((estimate: any) => {
-        const salesperson = estimate.salesperson;
-        if (salesperson) {
-          tglTotal++;
-          tglBySalesperson[salesperson] = (tglBySalesperson[salesperson] || 0) + 1;
-        }
-      });
-
-      // Build TGL leaders list (only people with TGLs > 0)
-      const tglLeaders: TGLLeader[] = Object.keys(tglBySalesperson)
-        .map(person => {
+      // Build TGL leaders list from aggregated data
+      const tglLeaders: TGLLeader[] = (tglAggregateData || [])
+        .map((row: any) => {
+          const person = row.salesperson;
+          const count = parseInt(row.tgl_count || '0', 10);
+          tglTotal += count;
           const personData = salespersonMap[person];
           return {
             name: person,
-            tglCount: tglBySalesperson[person],
+            tglCount: count,
             department: personData?.business_unit || 'Unknown',
             headshot_url: personData?.headshot_url || null,
           };
         })
-        .sort((a, b) => b.tglCount - a.tglCount); // Sort by TGL count descending
+        .filter((leader: TGLLeader) => leader.tglCount > 0) // Only include people with TGLs
+        .sort((a: TGLLeader, b: TGLLeader) => b.tglCount - a.tglCount); // Sort by TGL count descending
 
       console.log(`✅ TGL Leaders: ${tglLeaders.length} people with TGLs`);
 
