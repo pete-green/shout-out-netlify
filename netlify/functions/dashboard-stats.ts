@@ -35,6 +35,8 @@ interface TGLLeader {
  * Dashboard Statistics API
  * GET /?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
  * Returns sales statistics by department for the specified date range
+ *
+ * Company total includes ALL sales, department breakdown shows only 7 main depts
  */
 export const handler: Handler = async (event, _context) => {
   const { httpMethod, queryStringParameters } = event;
