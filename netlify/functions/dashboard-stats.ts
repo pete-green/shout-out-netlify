@@ -138,27 +138,29 @@ export const handler: Handler = async (event, _context) => {
         const personData = salespersonMap[salesperson];
         const amount = parseFloat(sale.amount);
 
-        // Skip if no business unit found or not in our list
-        if (!personData || !departments.includes(personData.business_unit)) {
-          return;
-        }
-
-        const businessUnit = personData.business_unit;
+        // ALWAYS add to company total, regardless of department
         companyTotal += amount;
 
-        // Update department totals
-        departmentStats[businessUnit].total += amount;
-        departmentStats[businessUnit].count += 1;
+        // Only add to department stats if person has a recognized business unit
+        if (personData && departments.includes(personData.business_unit)) {
+          const businessUnit = personData.business_unit;
 
-        // Track by person for top performer calculation
-        if (!salesByDeptAndPerson[businessUnit]) {
-          salesByDeptAndPerson[businessUnit] = {};
+          // Update department totals
+          departmentStats[businessUnit].total += amount;
+          departmentStats[businessUnit].count += 1;
+
+          // Track by person for top performer calculation
+          if (!salesByDeptAndPerson[businessUnit]) {
+            salesByDeptAndPerson[businessUnit] = {};
+          }
+          if (!salesByDeptAndPerson[businessUnit][salesperson]) {
+            salesByDeptAndPerson[businessUnit][salesperson] = { total: 0, count: 0 };
+          }
+          salesByDeptAndPerson[businessUnit][salesperson].total += amount;
+          salesByDeptAndPerson[businessUnit][salesperson].count += 1;
         }
-        if (!salesByDeptAndPerson[businessUnit][salesperson]) {
-          salesByDeptAndPerson[businessUnit][salesperson] = { total: 0, count: 0 };
-        }
-        salesByDeptAndPerson[businessUnit][salesperson].total += amount;
-        salesByDeptAndPerson[businessUnit][salesperson].count += 1;
+        // Note: Sales from unrecognized departments are included in company total
+        // but not shown in department breakdown
       });
 
       // Find top salesperson for each department
