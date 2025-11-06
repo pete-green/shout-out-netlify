@@ -71,19 +71,39 @@ export const handler: Handler = async (event, _context) => {
 
       // Use raw SQL with AT TIME ZONE to properly filter by Eastern Time
       // This query filters sold_at timestamps by their Eastern Time date, not UTC
-      // CRITICAL: Supabase JS client has a default 1000 row limit on ALL queries including RPC
-      // Must explicitly set .limit(10000) to retrieve all records
-      const { data: salesData, error: salesError } = await supabase
-        .rpc('get_sales_by_date_range', {
-          p_start_date: startDate,
-          p_end_date: endDate
-        })
-        .limit(10000);
+      // CRITICAL: Supabase JS client has a default 1000 row limit on RPC calls
+      // Fetch data in batches to work around the 1000 row limit
+      const allSalesData: any[] = [];
+      let batchNum = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      if (salesError) {
-        console.error('❌ Error fetching sales data:', salesError);
-        throw new Error(`Failed to fetch sales data: ${salesError.message}`);
+      console.log(`🔄 Fetching sales data in batches...`);
+
+      while (hasMore && batchNum < 10) { // Safety limit of 10 batches (10,000 records)
+        const { data: batchData, error: batchError } = await supabase
+          .rpc('get_sales_by_date_range', {
+            p_start_date: startDate,
+            p_end_date: endDate
+          })
+          .range(batchNum * batchSize, (batchNum + 1) * batchSize - 1);
+
+        if (batchError) {
+          console.error(`❌ Error fetching batch ${batchNum}:`, batchError);
+          throw new Error(`Failed to fetch sales data: ${batchError.message}`);
+        }
+
+        if (batchData && batchData.length > 0) {
+          allSalesData.push(...batchData);
+          console.log(`  ✅ Batch ${batchNum + 1}: fetched ${batchData.length} records (total: ${allSalesData.length})`);
+          hasMore = batchData.length === batchSize;
+          batchNum++;
+        } else {
+          hasMore = false;
+        }
       }
+
+      const salesData = allSalesData;
 
       console.log(`✅ Found ${salesData?.length || 0} paid sales in date range`);
       console.log(`🔍 DEBUG: RPC called with p_limit=10000, received ${salesData?.length || 0} records`);
