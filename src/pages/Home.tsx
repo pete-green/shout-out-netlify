@@ -60,6 +60,7 @@ const departmentColors: { [key: string]: string } = {
   'Electrical Service': '#8b5cf6', // Purple
   'Electrical Install': '#a855f7', // Violet
   'Inside Sales': '#10b981', // Green
+  'Other': '#64748b', // Slate gray
 };
 
 function Home() {

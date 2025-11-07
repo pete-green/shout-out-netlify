@@ -147,7 +147,7 @@ export const handler: Handler = async (event, _context) => {
       let companyTotal = 0;
       const departmentStats: { [key: string]: DepartmentStats } = {};
 
-      // Initialize department stats
+      // Initialize department stats (including "Other")
       departments.forEach(dept => {
         departmentStats[dept] = {
           department: dept,
@@ -156,6 +156,14 @@ export const handler: Handler = async (event, _context) => {
           topSalesperson: null,
         };
       });
+
+      // Initialize "Other" department for employees not in main departments
+      departmentStats['Other'] = {
+        department: 'Other',
+        total: 0,
+        count: 0,
+        topSalesperson: null,
+      };
 
       // Group sales by department and salesperson
       const salesByDeptAndPerson: { [dept: string]: { [person: string]: { total: number; count: number } } } = {};
@@ -168,7 +176,7 @@ export const handler: Handler = async (event, _context) => {
         // ALWAYS add to company total, regardless of department
         companyTotal += amount;
 
-        // Only add to department stats if person has a recognized business unit
+        // Check if person has a recognized business unit
         if (personData && departments.includes(personData.business_unit)) {
           const businessUnit = personData.business_unit;
 
@@ -185,9 +193,21 @@ export const handler: Handler = async (event, _context) => {
           }
           salesByDeptAndPerson[businessUnit][salesperson].total += amount;
           salesByDeptAndPerson[businessUnit][salesperson].count += 1;
+        } else {
+          // Add to "Other" category for employees not in main departments
+          departmentStats['Other'].total += amount;
+          departmentStats['Other'].count += 1;
+
+          // Track by person for top performer calculation in "Other"
+          if (!salesByDeptAndPerson['Other']) {
+            salesByDeptAndPerson['Other'] = {};
+          }
+          if (!salesByDeptAndPerson['Other'][salesperson]) {
+            salesByDeptAndPerson['Other'][salesperson] = { total: 0, count: 0 };
+          }
+          salesByDeptAndPerson['Other'][salesperson].total += amount;
+          salesByDeptAndPerson['Other'][salesperson].count += 1;
         }
-        // Note: Sales from unrecognized departments are included in company total
-        // but not shown in department breakdown
       });
 
       // Find top salesperson for each department
@@ -213,8 +233,11 @@ export const handler: Handler = async (event, _context) => {
         }
       });
 
-      // Convert to array for response
-      const departmentArray = departments.map(dept => departmentStats[dept]);
+      // Convert to array for response (main departments + "Other")
+      const departmentArray = [
+        ...departments.map(dept => departmentStats[dept]),
+        departmentStats['Other'] // Add "Other" at the end
+      ];
 
       // ===== TGL STATISTICS =====
 
