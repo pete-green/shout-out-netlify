@@ -13,6 +13,7 @@ interface DepartmentStats {
   total: number;
   count: number;
   topSalesperson: TopSalesperson | null;
+  allSalespeople: TopSalesperson[];
 }
 
 interface TGLLeader {
@@ -70,6 +71,7 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set());
 
   // Fetch dashboard data
   const fetchDashboard = async () => {
@@ -160,6 +162,19 @@ function Home() {
     const [year, month, day] = dateStr.split('-').map(Number);
     const date = new Date(year, month - 1, day); // month is 0-indexed
     return date.toLocaleDateString();
+  };
+
+  // Toggle department expansion
+  const toggleDepartment = (department: string) => {
+    setExpandedDepartments(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(department)) {
+        newSet.delete(department);
+      } else {
+        newSet.add(department);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -497,101 +512,246 @@ function Home() {
               🏆 Top Performers by Department
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {data.departments.map((dept) => (
-                <div
-                  key={dept.department}
-                  style={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
-                    borderRadius: '0.5rem',
-                    padding: '1.25rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '1rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              {data.departments.map((dept) => {
+                const isExpanded = expandedDepartments.has(dept.department);
+                const hasMultipleSalespeople = dept.allSalespeople.length > 1;
+
+                return (
+                  <div
+                    key={dept.department}
+                    style={{
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '0.5rem',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* Header - Always visible */}
                     <div
+                      onClick={() => hasMultipleSalespeople && toggleDepartment(dept.department)}
                       style={{
-                        width: '4px',
-                        height: '60px',
-                        backgroundColor: departmentColors[dept.department] || '#334155',
-                        borderRadius: '2px',
+                        padding: '1.25rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '1rem',
+                        cursor: hasMultipleSalespeople ? 'pointer' : 'default',
+                        transition: 'background-color 0.2s',
                       }}
-                    />
-                    {dept.topSalesperson && dept.topSalesperson.headshot_url ? (
-                      <img
-                        src={dept.topSalesperson.headshot_url}
-                        alt={dept.topSalesperson.name}
-                        style={{
-                          width: '60px',
-                          height: '60px',
-                          objectFit: 'cover',
-                          borderRadius: '50%',
-                          border: `2px solid ${departmentColors[dept.department] || '#475569'}`,
-                        }}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const placeholder = target.nextElementSibling as HTMLDivElement;
-                          if (placeholder) placeholder.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    {dept.topSalesperson && !dept.topSalesperson.headshot_url ? (
-                      <div
-                        style={{
-                          width: '60px',
-                          height: '60px',
-                          borderRadius: '50%',
-                          backgroundColor: '#334155',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.5rem',
-                          fontWeight: 'bold',
-                          color: '#94a3b8',
-                          border: `2px solid ${departmentColors[dept.department] || '#475569'}`,
-                        }}
-                      >
-                        {dept.topSalesperson.name.charAt(0).toUpperCase()}
-                      </div>
-                    ) : null}
-                    <div>
-                      <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                        {dept.department}
-                      </div>
-                      {dept.topSalesperson ? (
-                        <>
-                          <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
-                            {dept.topSalesperson.name}
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                            {dept.topSalesperson.count} {dept.topSalesperson.count === 1 ? 'sale' : 'sales'}
-                          </div>
-                        </>
-                      ) : (
-                        <div style={{ fontSize: '1rem', color: '#64748b', fontStyle: 'italic' }}>
-                          No sales yet
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {dept.topSalesperson && (
-                    <div
-                      style={{
-                        fontSize: '1.5rem',
-                        fontWeight: 'bold',
-                        color: departmentColors[dept.department] || '#94a3b8',
+                      onMouseEnter={(e) => {
+                        if (hasMultipleSalespeople) {
+                          e.currentTarget.style.backgroundColor = '#334155';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
                       }}
                     >
-                      {formatCurrency(dept.topSalesperson.total)}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+                        <div
+                          style={{
+                            width: '4px',
+                            height: '60px',
+                            backgroundColor: departmentColors[dept.department] || '#334155',
+                            borderRadius: '2px',
+                          }}
+                        />
+                        {dept.topSalesperson && dept.topSalesperson.headshot_url ? (
+                          <img
+                            src={dept.topSalesperson.headshot_url}
+                            alt={dept.topSalesperson.name}
+                            style={{
+                              width: '60px',
+                              height: '60px',
+                              objectFit: 'cover',
+                              borderRadius: '50%',
+                              border: `2px solid ${departmentColors[dept.department] || '#475569'}`,
+                            }}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        ) : null}
+                        {dept.topSalesperson && !dept.topSalesperson.headshot_url ? (
+                          <div
+                            style={{
+                              width: '60px',
+                              height: '60px',
+                              borderRadius: '50%',
+                              backgroundColor: '#334155',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '1.5rem',
+                              fontWeight: 'bold',
+                              color: '#94a3b8',
+                              border: `2px solid ${departmentColors[dept.department] || '#475569'}`,
+                            }}
+                          >
+                            {dept.topSalesperson.name.charAt(0).toUpperCase()}
+                          </div>
+                        ) : null}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                            {dept.department}
+                            {hasMultipleSalespeople && (
+                              <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem' }}>
+                                ({dept.allSalespeople.length} {dept.allSalespeople.length === 1 ? 'person' : 'people'})
+                              </span>
+                            )}
+                          </div>
+                          {dept.topSalesperson ? (
+                            <>
+                              <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
+                                {dept.topSalesperson.name}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                {dept.topSalesperson.count} {dept.topSalesperson.count === 1 ? 'sale' : 'sales'}
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ fontSize: '1rem', color: '#64748b', fontStyle: 'italic' }}>
+                              No sales yet
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        {dept.topSalesperson && (
+                          <div
+                            style={{
+                              fontSize: '1.5rem',
+                              fontWeight: 'bold',
+                              color: departmentColors[dept.department] || '#94a3b8',
+                            }}
+                          >
+                            {formatCurrency(dept.topSalesperson.total)}
+                          </div>
+                        )}
+                        {hasMultipleSalespeople && (
+                          <div
+                            style={{
+                              fontSize: '1.25rem',
+                              color: '#64748b',
+                              transition: 'transform 0.2s',
+                              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                            }}
+                          >
+                            ▼
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {/* Expanded content - All salespeople */}
+                    {isExpanded && hasMultipleSalespeople && (
+                      <div
+                        style={{
+                          borderTop: '1px solid #334155',
+                          backgroundColor: '#0f172a',
+                          padding: '1rem',
+                        }}
+                      >
+                        {dept.allSalespeople.slice(1).map((person, index) => (
+                          <div
+                            key={person.name}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '0.75rem',
+                              marginBottom: index < dept.allSalespeople.length - 2 ? '0.5rem' : 0,
+                              backgroundColor: '#1e293b',
+                              borderRadius: '0.375rem',
+                              border: '1px solid #334155',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              {/* Rank badge */}
+                              <div
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '50%',
+                                  backgroundColor: '#334155',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.875rem',
+                                  fontWeight: 'bold',
+                                  color: '#94a3b8',
+                                }}
+                              >
+                                {index + 2}
+                              </div>
+
+                              {/* Headshot or initial */}
+                              {person.headshot_url ? (
+                                <img
+                                  src={person.headshot_url}
+                                  alt={person.name}
+                                  style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    objectFit: 'cover',
+                                    borderRadius: '50%',
+                                    border: '1px solid #475569',
+                                  }}
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#334155',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '1rem',
+                                    fontWeight: 'bold',
+                                    color: '#94a3b8',
+                                    border: '1px solid #475569',
+                                  }}
+                                >
+                                  {person.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+
+                              {/* Name and sales count */}
+                              <div>
+                                <div style={{ fontSize: '0.9375rem', fontWeight: '500' }}>
+                                  {person.name}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                  {person.count} {person.count === 1 ? 'sale' : 'sales'}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Total */}
+                            <div
+                              style={{
+                                fontSize: '1.125rem',
+                                fontWeight: '600',
+                                color: departmentColors[dept.department] || '#94a3b8',
+                              }}
+                            >
+                              {formatCurrency(person.total)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </>

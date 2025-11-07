@@ -12,16 +12,19 @@ function createResponse(statusCode: number, body: any): HandlerResponse {
   };
 }
 
+interface Salesperson {
+  name: string;
+  total: number;
+  count: number;
+  headshot_url: string | null;
+}
+
 interface DepartmentStats {
   department: string;
   total: number;
   count: number;
-  topSalesperson: {
-    name: string;
-    total: number;
-    count: number;
-    headshot_url: string | null;
-  } | null;
+  topSalesperson: Salesperson | null;
+  allSalespeople: Salesperson[]; // All salespeople ranked by total
 }
 
 interface TGLLeader {
@@ -154,6 +157,7 @@ export const handler: Handler = async (event, _context) => {
           total: 0,
           count: 0,
           topSalesperson: null,
+          allSalespeople: [],
         };
       });
 
@@ -163,6 +167,7 @@ export const handler: Handler = async (event, _context) => {
         total: 0,
         count: 0,
         topSalesperson: null,
+        allSalespeople: [],
       };
 
       // Group sales by department and salesperson
@@ -210,26 +215,27 @@ export const handler: Handler = async (event, _context) => {
         }
       });
 
-      // Find top salesperson for each department
+      // Find top salesperson and build ranked list for each department
       Object.keys(salesByDeptAndPerson).forEach(dept => {
         const salespeople = salesByDeptAndPerson[dept];
-        let topPerson: string | null = null;
-        let topTotal = 0;
 
-        Object.keys(salespeople).forEach(person => {
-          if (salespeople[person].total > topTotal) {
-            topTotal = salespeople[person].total;
-            topPerson = person;
-          }
-        });
+        // Build array of all salespeople with their stats
+        const salespeopleArray: Salesperson[] = Object.keys(salespeople).map(person => ({
+          name: person,
+          total: salespeople[person].total,
+          count: salespeople[person].count,
+          headshot_url: salespersonMap[person]?.headshot_url || null,
+        }));
 
-        if (topPerson) {
-          departmentStats[dept].topSalesperson = {
-            name: topPerson,
-            total: salespeople[topPerson].total,
-            count: salespeople[topPerson].count,
-            headshot_url: salespersonMap[topPerson]?.headshot_url || null,
-          };
+        // Sort by total descending
+        salespeopleArray.sort((a, b) => b.total - a.total);
+
+        // Set all salespeople
+        departmentStats[dept].allSalespeople = salespeopleArray;
+
+        // Set top salesperson (first in sorted array)
+        if (salespeopleArray.length > 0) {
+          departmentStats[dept].topSalesperson = salespeopleArray[0];
         }
       });
 
