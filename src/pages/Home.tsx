@@ -29,8 +29,12 @@ interface DashboardData {
     end: string;
   };
   companyTotal: number;
+  companyWorkDays: number;
+  companyAvgPerWorkDay: number;
   departments: DepartmentStats[];
   tglTotal: number;
+  tglWorkDays: number;
+  tglAvgPerWorkDay: number;
   tglLeaders: TGLLeader[];
   timestamp: string;
 }
@@ -317,6 +321,29 @@ function Home() {
                   ? `for ${formatDateString(startDate)}`
                   : `${formatDateString(startDate)} - ${formatDateString(endDate)}`}
               </div>
+
+              {/* Per Work Day Average */}
+              {data.companyWorkDays > 0 && (
+                <>
+                  <div
+                    style={{
+                      borderTop: '1px solid #334155',
+                      marginTop: '1rem',
+                      paddingTop: '1rem',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
+                      Per Work Day
+                    </div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#60a5fa' }}>
+                      {formatCurrency(data.companyAvgPerWorkDay)}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      ({data.companyWorkDays} work {data.companyWorkDays === 1 ? 'day' : 'days'})
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* TGL Total Card */}
@@ -340,6 +367,29 @@ function Home() {
                   ? `for ${formatDateString(startDate)}`
                   : `${formatDateString(startDate)} - ${formatDateString(endDate)}`}
               </div>
+
+              {/* Per Work Day Average */}
+              {data.tglWorkDays > 0 && (
+                <>
+                  <div
+                    style={{
+                      borderTop: '1px solid #334155',
+                      marginTop: '1rem',
+                      paddingTop: '1rem',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
+                      Per Work Day
+                    </div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#34d399' }}>
+                      {data.tglAvgPerWorkDay.toFixed(2)}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      ({data.tglWorkDays} work {data.tglWorkDays === 1 ? 'day' : 'days'})
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

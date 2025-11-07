@@ -60,6 +60,14 @@ interface PollStatus {
   };
 }
 
+interface NonWorkDay {
+  id: number;
+  date: string;
+  name: string;
+  year: number;
+  is_active: boolean;
+}
+
 interface Estimate {
   id: number;
   estimate_id: string;
@@ -128,10 +136,26 @@ export default function Configuration() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearingData, setClearingData] = useState(false);
 
+  // Non-work days state
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [nonWorkDays, setNonWorkDays] = useState<NonWorkDay[]>([]);
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [editingHoliday, setEditingHoliday] = useState<NonWorkDay | null>(null);
+  const [holidayForm, setHolidayForm] = useState({ date: '', name: '' });
+  const [holidayFormError, setHolidayFormError] = useState<string | null>(null);
+  const [savingHoliday, setSavingHoliday] = useState(false);
+  const [workDaysCount, setWorkDaysCount] = useState<number>(0);
+
   useEffect(() => {
     fetchData();
     fetchPollStatus();
+    fetchNonWorkDays();
   }, []);
+
+  // Fetch non-work days when year changes
+  useEffect(() => {
+    fetchNonWorkDays();
+  }, [selectedYear]);
 
   // Real-time subscription - listen for new poll logs
   useEffect(() => {
@@ -491,6 +515,121 @@ export default function Configuration() {
     setShowWebhookModal(true);
   }
 
+  // Non-work days operations
+  async function fetchNonWorkDays() {
+    try {
+      const response = await fetch(`${API_URL}/non-work-days?year=${selectedYear}`);
+      if (response.ok) {
+        const data = await response.json();
+        setNonWorkDays(data);
+        // Calculate work days for the year
+        await calculateYearWorkDays();
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch non-work days:', err);
+    }
+  }
+
+  async function calculateYearWorkDays() {
+    try {
+      const startDate = `${selectedYear}-01-01`;
+      const endDate = `${selectedYear}-12-31`;
+      const { data, error } = await supabase
+        .rpc('calculate_work_days', {
+          p_start_date: startDate,
+          p_end_date: endDate
+        });
+
+      if (!error && data !== null) {
+        setWorkDaysCount(data);
+      }
+    } catch (err: any) {
+      console.error('Failed to calculate work days:', err);
+    }
+  }
+
+  function openHolidayModal(holiday?: NonWorkDay) {
+    if (holiday) {
+      setEditingHoliday(holiday);
+      setHolidayForm({
+        date: holiday.date,
+        name: holiday.name,
+      });
+    } else {
+      setEditingHoliday(null);
+      setHolidayForm({ date: '', name: '' });
+    }
+    setHolidayFormError(null);
+    setShowHolidayModal(true);
+  }
+
+  async function handleSaveHoliday() {
+    setHolidayFormError(null);
+
+    // Validation
+    if (!holidayForm.date) {
+      setHolidayFormError('Date is required');
+      return;
+    }
+    if (!holidayForm.name.trim()) {
+      setHolidayFormError('Name is required');
+      return;
+    }
+
+    setSavingHoliday(true);
+    try {
+      const method = editingHoliday ? 'PATCH' : 'POST';
+      const url = editingHoliday
+        ? `${API_URL}/non-work-days/${editingHoliday.id}`
+        : `${API_URL}/non-work-days`;
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(holidayForm),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setHolidayFormError(data.error || 'Failed to save non-work day');
+        return;
+      }
+
+      setShowHolidayModal(false);
+      setEditingHoliday(null);
+      setHolidayForm({ date: '', name: '' });
+      await fetchNonWorkDays();
+    } catch (err: any) {
+      setHolidayFormError(err.message);
+    } finally {
+      setSavingHoliday(false);
+    }
+  }
+
+  async function handleDeleteHoliday(id: number) {
+    if (!confirm('Are you sure you want to delete this non-work day?')) return;
+
+    try {
+      const response = await fetch(`${API_URL}/non-work-days/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete non-work day');
+      }
+
+      await fetchNonWorkDays();
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  // Helper function to get all dates with non-work days for calendar display
+  function getNonWorkDaysMap(): Set<string> {
+    return new Set(nonWorkDays.filter(d => d.is_active).map(d => d.date));
+  }
+
   // Styles
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
@@ -804,6 +943,211 @@ export default function Configuration() {
         >
           {savingSettings ? 'Saving...' : 'Save Settings'}
         </button>
+      </div>
+
+      {/* Non-Work Days Section */}
+      <div style={sectionStyle}>
+        <div style={headerStyle}>
+          <span>Non-Work Days</span>
+          <button style={buttonStyle} onClick={() => openHolidayModal()}>
+            + Add Holiday
+          </button>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <label style={labelStyle}>Year</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              style={{
+                ...inputStyle,
+                width: 'auto',
+                marginBottom: 0,
+                padding: '0.5rem 1rem',
+              }}
+            >
+              {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={cardStyle}>
+            <div style={{ color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+              Total Work Days in {selectedYear}
+            </div>
+            <div style={{ color: '#3b82f6', fontSize: '2rem', fontWeight: 'bold' }}>
+              {workDaysCount}
+            </div>
+            <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              Excludes weekends and holidays
+            </div>
+          </div>
+        </div>
+
+        {/* Calendar View */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ color: '#f1f5f9', fontSize: '1rem', fontWeight: '600', marginBottom: '1rem' }}>
+            Calendar
+          </h3>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '1rem',
+            }}
+          >
+            {Array.from({ length: 12 }, (_, monthIndex) => {
+              const monthDate = new Date(selectedYear, monthIndex, 1);
+              const monthName = monthDate.toLocaleString('default', { month: 'short' });
+              const daysInMonth = new Date(selectedYear, monthIndex + 1, 0).getDate();
+              const firstDayOfWeek = monthDate.getDay(); // 0 = Sunday
+              const nonWorkDaysSet = getNonWorkDaysMap();
+
+              return (
+                <div key={monthIndex} style={cardStyle}>
+                  <div style={{ color: '#f1f5f9', fontWeight: '600', marginBottom: '0.5rem', textAlign: 'center' }}>
+                    {monthName}
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(7, 1fr)',
+                      gap: '2px',
+                    }}
+                  >
+                    {/* Day headers */}
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          fontSize: '0.625rem',
+                          color: '#64748b',
+                          textAlign: 'center',
+                          padding: '2px',
+                        }}
+                      >
+                        {day}
+                      </div>
+                    ))}
+
+                    {/* Empty cells for days before month starts */}
+                    {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                      <div key={`empty-${i}`} />
+                    ))}
+
+                    {/* Days of month */}
+                    {Array.from({ length: daysInMonth }, (_, dayIndex) => {
+                      const day = dayIndex + 1;
+                      const dateStr = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const isHoliday = nonWorkDaysSet.has(dateStr);
+                      const dayOfWeek = new Date(selectedYear, monthIndex, day).getDay();
+                      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+                      return (
+                        <div
+                          key={day}
+                          style={{
+                            fontSize: '0.75rem',
+                            textAlign: 'center',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            backgroundColor: isHoliday
+                              ? '#7c2d12'
+                              : isWeekend
+                              ? '#1e293b'
+                              : 'transparent',
+                            color: isHoliday
+                              ? '#fb923c'
+                              : isWeekend
+                              ? '#64748b'
+                              : '#e2e8f0',
+                            fontWeight: isHoliday ? '600' : 'normal',
+                          }}
+                        >
+                          {day}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: '1rem', display: 'flex', gap: '1.5rem', fontSize: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ width: '1rem', height: '1rem', borderRadius: '4px', backgroundColor: '#7c2d12' }} />
+              <span style={{ color: '#94a3b8' }}>Holiday</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ width: '1rem', height: '1rem', borderRadius: '4px', backgroundColor: '#1e293b', border: '1px solid #334155' }} />
+              <span style={{ color: '#94a3b8' }}>Weekend</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Holidays List */}
+        <div>
+          <h3 style={{ color: '#f1f5f9', fontSize: '1rem', fontWeight: '600', marginBottom: '1rem' }}>
+            Holidays ({nonWorkDays.length})
+          </h3>
+
+          {nonWorkDays.length === 0 ? (
+            <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>
+              No holidays configured for {selectedYear}
+            </div>
+          ) : (
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Date</th>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nonWorkDays.map((holiday) => (
+                  <tr key={holiday.id}>
+                    <td style={tdStyle}>
+                      {new Date(holiday.date + 'T00:00:00').toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </td>
+                    <td style={tdStyle}>{holiday.name}</td>
+                    <td style={tdStyle}>
+                      <span
+                        style={{
+                          color: holiday.is_active ? '#10b981' : '#ef4444',
+                          fontWeight: '600',
+                        }}
+                      >
+                        {holiday.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td style={tdStyle}>
+                      <button
+                        style={{ ...secondaryButtonStyle, marginBottom: '0.25rem' }}
+                        onClick={() => openHolidayModal(holiday)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        style={dangerButtonStyle}
+                        onClick={() => handleDeleteHoliday(holiday.id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {/* Polling Section */}
@@ -1570,6 +1914,64 @@ export default function Configuration() {
                 disabled={clearingData}
               >
                 {clearingData ? 'Clearing...' : 'Yes, Clear All Data'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Holiday Modal */}
+      {showHolidayModal && (
+        <div style={modalOverlayStyle} onClick={() => setShowHolidayModal(false)}>
+          <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ color: '#f1f5f9', marginBottom: '1.5rem' }}>
+              {editingHoliday ? 'Edit Holiday' : 'Add Holiday'}
+            </h2>
+
+            {holidayFormError && (
+              <div
+                style={{
+                  backgroundColor: '#7f1d1d',
+                  color: '#fecaca',
+                  padding: '0.75rem',
+                  borderRadius: '6px',
+                  marginBottom: '1rem',
+                }}
+              >
+                {holidayFormError}
+              </div>
+            )}
+
+            <label style={labelStyle}>Date</label>
+            <input
+              type="date"
+              style={inputStyle}
+              value={holidayForm.date}
+              onChange={(e) => setHolidayForm({ ...holidayForm, date: e.target.value })}
+            />
+
+            <label style={labelStyle}>Holiday Name</label>
+            <input
+              type="text"
+              style={inputStyle}
+              value={holidayForm.name}
+              onChange={(e) => setHolidayForm({ ...holidayForm, name: e.target.value })}
+              placeholder="e.g., Christmas Day"
+            />
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+              <button
+                style={{ ...buttonStyle, flex: 1 }}
+                onClick={handleSaveHoliday}
+                disabled={savingHoliday}
+              >
+                {savingHoliday ? 'Saving...' : editingHoliday ? 'Save Changes' : 'Add Holiday'}
+              </button>
+              <button
+                style={{ ...secondaryButtonStyle, flex: 1 }}
+                onClick={() => setShowHolidayModal(false)}
+              >
+                Cancel
               </button>
             </div>
           </div>

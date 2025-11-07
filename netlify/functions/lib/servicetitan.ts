@@ -74,33 +74,56 @@ export async function getServiceTitanToken(): Promise<string> {
 }
 
 /**
- * Fetch sold estimates from ServiceTitan API
+ * Fetch sold estimates from ServiceTitan API with pagination
  * @param soldAfter ISO 8601 timestamp to filter estimates sold after this time
  */
 export async function getSoldEstimates(soldAfter: string) {
   const bearerToken = await getServiceTitanToken();
 
-  const url = `${ST_CONFIG.baseUrl}/sales/v2/tenant/${ST_CONFIG.tenantId}/estimates?soldAfter=${encodeURIComponent(soldAfter)}`;
+  const allEstimates: any[] = [];
+  let page = 1;
+  const pageSize = 5000; // Max allowed by ServiceTitan API
+  let hasMore = true;
 
-  console.log('Fetching estimates from:', url);
+  console.log('Fetching estimates with pagination...');
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${bearerToken}`,
-      'ST-App-Key': ST_CONFIG.applicationKey,
-      Accept: 'application/json',
-    },
-  });
+  while (hasMore) {
+    const url = `${ST_CONFIG.baseUrl}/sales/v2/tenant/${ST_CONFIG.tenantId}/estimates?soldAfter=${encodeURIComponent(soldAfter)}&page=${page}&pageSize=${pageSize}`;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Service Titan API Error:', errorText);
-    throw new Error(errorText);
+    console.log(`Fetching page ${page}...`);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${bearerToken}`,
+        'ST-App-Key': ST_CONFIG.applicationKey,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Service Titan API Error:', errorText);
+      throw new Error(errorText);
+    }
+
+    const data = await response.json();
+    const estimates = data.data || [];
+
+    console.log(`Got ${estimates.length} estimates from page ${page}`);
+
+    allEstimates.push(...estimates);
+
+    // Check if there are more pages
+    if (estimates.length < pageSize) {
+      hasMore = false;
+      console.log(`Pagination complete. Total estimates: ${allEstimates.length}`);
+    } else {
+      page++;
+    }
   }
 
-  const data = await response.json();
-  return data.data || [];
+  return allEstimates;
 }
 
 /**

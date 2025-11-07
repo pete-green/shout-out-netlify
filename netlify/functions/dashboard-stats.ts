@@ -283,19 +283,38 @@ export const handler: Handler = async (event, _context) => {
 
       console.log(`✅ TGL Leaders: ${tglLeaders.length} people with TGLs`);
 
+      // Calculate work days in the date range
+      const { data: workDaysData, error: workDaysError } = await supabase
+        .rpc('calculate_work_days', {
+          p_start_date: startDate,
+          p_end_date: endDate
+        });
+
+      if (workDaysError) {
+        console.error('❌ Error calculating work days:', workDaysError);
+        // Don't fail the whole request, just set to 0
+      }
+
+      const workDays = workDaysData || 0;
+      console.log(`✅ Work days in range: ${workDays}`);
+
       const result = {
         dateRange: {
           start: startDate,
           end: endDate,
         },
         companyTotal,
+        companyWorkDays: workDays,
+        companyAvgPerWorkDay: workDays > 0 ? companyTotal / workDays : 0,
         departments: departmentArray,
         tglTotal,
+        tglWorkDays: workDays,
+        tglAvgPerWorkDay: workDays > 0 ? tglTotal / workDays : 0,
         tglLeaders,
         timestamp: new Date().toISOString(),
       };
 
-      console.log(`✅ Dashboard stats calculated: Company total $${companyTotal.toFixed(2)}, TGLs: ${tglTotal}`);
+      console.log(`✅ Dashboard stats calculated: Company total $${companyTotal.toFixed(2)}, TGLs: ${tglTotal}, Work days: ${workDays}`);
 
       return createResponse(200, result);
     }
