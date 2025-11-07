@@ -608,7 +608,7 @@ function Home() {
                                 {dept.topSalesperson.name}
                               </div>
                               <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                {dept.topSalesperson.count} {dept.topSalesperson.count === 1 ? 'sale' : 'sales'}
+                                {dept.topSalesperson.count} {dept.topSalesperson.count === 1 ? 'sale' : 'sales'} • Avg: {formatCurrency(dept.topSalesperson.total / dept.topSalesperson.count)}
                               </div>
                             </>
                           ) : (
@@ -730,7 +730,7 @@ function Home() {
                                   {person.name}
                                 </div>
                                 <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                  {person.count} {person.count === 1 ? 'sale' : 'sales'}
+                                  {person.count} {person.count === 1 ? 'sale' : 'sales'} • Avg: {formatCurrency(person.total / person.count)}
                                 </div>
                               </div>
                             </div>
