@@ -438,9 +438,23 @@ function Home() {
                   <div style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
                     {formatCurrency(dept.total)}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.5rem' }}>
                     {dept.count} {dept.count === 1 ? 'sale' : 'sales'}
                   </div>
+                  {data.companyWorkDays > 0 && (
+                    <div style={{
+                      borderTop: '1px solid #334155',
+                      paddingTop: '0.75rem',
+                      marginTop: '0.5rem'
+                    }}>
+                      <div style={{ fontSize: '0.625rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
+                        Per Work Day
+                      </div>
+                      <div style={{ fontSize: '1.125rem', fontWeight: 'bold', color: departmentColors[dept.department] || '#94a3b8' }}>
+                        {formatCurrency(dept.total / data.companyWorkDays)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -536,19 +550,26 @@ function Home() {
                     </div>
 
                     {/* TGL count */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div
-                        style={{
-                          fontSize: '2rem',
-                          fontWeight: 'bold',
-                          color: '#10b981',
-                        }}
-                      >
-                        {leader.tglCount}
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end', marginBottom: '0.25rem' }}>
+                        <div
+                          style={{
+                            fontSize: '2rem',
+                            fontWeight: 'bold',
+                            color: '#10b981',
+                          }}
+                        >
+                          {leader.tglCount}
+                        </div>
+                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                          {leader.tglCount === 1 ? 'TGL' : 'TGLs'}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                        {leader.tglCount === 1 ? 'TGL' : 'TGLs'}
-                      </div>
+                      {data.tglWorkDays > 0 && (
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                          {(leader.tglCount / data.tglWorkDays).toFixed(2)} per work day
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -659,6 +680,9 @@ function Home() {
                               </div>
                               <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                                 {dept.topSalesperson.count} {dept.topSalesperson.count === 1 ? 'sale' : 'sales'} • Avg: {formatCurrency(dept.topSalesperson.total / dept.topSalesperson.count)}
+                                {data.companyWorkDays > 0 && (
+                                  <span> • Per Work Day: {formatCurrency(dept.topSalesperson.total / data.companyWorkDays)}</span>
+                                )}
                               </div>
                             </>
                           ) : (
@@ -781,19 +805,29 @@ function Home() {
                                 </div>
                                 <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                                   {person.count} {person.count === 1 ? 'sale' : 'sales'} • Avg: {formatCurrency(person.total / person.count)}
+                                  {data.companyWorkDays > 0 && (
+                                    <span> • Per Work Day: {formatCurrency(person.total / data.companyWorkDays)}</span>
+                                  )}
                                 </div>
                               </div>
                             </div>
 
                             {/* Total */}
-                            <div
-                              style={{
-                                fontSize: '1.125rem',
-                                fontWeight: '600',
-                                color: departmentColors[dept.department] || '#94a3b8',
-                              }}
-                            >
-                              {formatCurrency(person.total)}
+                            <div style={{ textAlign: 'right' }}>
+                              <div
+                                style={{
+                                  fontSize: '1.125rem',
+                                  fontWeight: '600',
+                                  color: departmentColors[dept.department] || '#94a3b8',
+                                }}
+                              >
+                                {formatCurrency(person.total)}
+                              </div>
+                              {data.companyWorkDays > 0 && (
+                                <div style={{ fontSize: '0.625rem', color: '#94a3b8', marginTop: '0.125rem' }}>
+                                  {formatCurrency(person.total / data.companyWorkDays)}/day
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
