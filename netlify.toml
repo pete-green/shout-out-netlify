@@ -22,3 +22,29 @@
   schedule = "*/5 * * * *"
 
 # sync-salespeople: Syncs salespeople daily at 2 AM UTC (configured via Netlify UI)
+
+# send-daily-report: Sends sales reports at specific times Monday-Friday
+# Times are in UTC, configured for EDT (Eastern Daylight Time, UTC-4)
+# During EST (Dec-Feb), reports will arrive 1 hour earlier
+# Schedule format: minute hour day month weekday (1-5 = Mon-Fri)
+# All schedules call the same send-daily-report function via wrapper files
+
+# 10am EDT / 2pm UTC
+[functions."daily-report-10am"]
+  schedule = "0 14 * * 1-5"
+
+# 12pm EDT / 4pm UTC
+[functions."daily-report-12pm"]
+  schedule = "0 16 * * 1-5"
+
+# 2pm EDT / 6pm UTC
+[functions."daily-report-2pm"]
+  schedule = "0 18 * * 1-5"
+
+# 4pm EDT / 8pm UTC
+[functions."daily-report-4pm"]
+  schedule = "0 20 * * 1-5"
+
+# 7pm EDT / 11pm UTC
+[functions."daily-report-7pm"]
+  schedule = "0 23 * * 1-5"
