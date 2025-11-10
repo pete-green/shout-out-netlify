@@ -37,30 +37,32 @@ export const handler: Handler = async (_event, _context) => {
       };
     }
 
-    // Get date ranges in Eastern Time
-    const todayStart = getTodayStartET();
-    const todayEnd = new Date().toISOString();
-    const monthStart = getMonthStartET();
+    // Get date ranges in Eastern Time (YYYY-MM-DD format for RPC function)
+    const todayDate = getTodayDateET();
+    const monthStartDate = getMonthStartDateET();
 
-    console.log(`Today range: ${todayStart} to ${todayEnd}`);
-    console.log(`Month range: ${monthStart} to ${todayEnd}`);
+    console.log(`Today date: ${todayDate}`);
+    console.log(`Month start date: ${monthStartDate}`);
+
+    // Fetch salespeople map for business unit lookup
+    const salespersonMap = await fetchSalespeopleMap();
 
     // Fetch today's sales data
-    const todaySales = await fetchSalesData(todayStart, todayEnd);
-    const todayByDept = aggregateByDepartment(todaySales);
+    const todaySales = await fetchSalesData(todayDate, todayDate);
+    const todayByDept = aggregateByDepartment(todaySales, salespersonMap);
     const todayTotal = calculateTotal(todayByDept);
 
     // Fetch month-to-date sales data
-    const mtdSales = await fetchSalesData(monthStart, todayEnd);
-    const mtdByDept = aggregateByDepartment(mtdSales);
+    const mtdSales = await fetchSalesData(monthStartDate, todayDate);
+    const mtdByDept = aggregateByDepartment(mtdSales, salespersonMap);
     const mtdTotal = calculateTotal(mtdByDept);
 
     // Calculate work days for MTD
-    const workDays = await calculateWorkDays(monthStart, todayEnd);
+    const workDays = await calculateWorkDays(monthStartDate, todayDate);
 
     // Fetch TGL counts
-    const todayTGLs = await fetchTGLCount(todayStart, todayEnd);
-    const mtdTGLs = await fetchTGLCount(monthStart, todayEnd);
+    const todayTGLs = await fetchTGLCount(todayDate, todayDate);
+    const mtdTGLs = await fetchTGLCount(monthStartDate, todayDate);
 
     // Calculate averages
     const avgSalesPerDay = workDays > 0 ? mtdTotal / workDays : 0;
@@ -97,34 +99,24 @@ export const handler: Handler = async (_event, _context) => {
 };
 
 /**
- * Get start of today in Eastern Time (midnight)
+ * Get today's date in Eastern Time as YYYY-MM-DD format
+ * The RPC function expects date strings, not timestamps
  */
-function getTodayStartET(): string {
+function getTodayDateET(): string {
   const now = new Date();
-  // Convert to ET by formatting with ET timezone
-  const etDateString = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
-  const etDate = new Date(etDateString);
-
-  // Set to midnight
-  etDate.setHours(0, 0, 0, 0);
-
-  // Convert back to ISO string
-  return etDate.toISOString();
+  // Format as YYYY-MM-DD in ET timezone
+  return now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
 /**
- * Get start of current month in Eastern Time
+ * Get first day of current month in Eastern Time as YYYY-MM-DD format
  */
-function getMonthStartET(): string {
+function getMonthStartDateET(): string {
   const now = new Date();
-  const etDateString = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
-  const etDate = new Date(etDateString);
-
-  // Set to first day of month at midnight
-  etDate.setDate(1);
-  etDate.setHours(0, 0, 0, 0);
-
-  return etDate.toISOString();
+  const etDateString = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  // Split YYYY-MM-DD and replace day with 01
+  const [year, month] = etDateString.split('-');
+  return `${year}-${month}-01`;
 }
 
 /**
@@ -166,9 +158,35 @@ async function fetchSalesData(startDate: string, endDate: string) {
 }
 
 /**
+ * Fetch salespeople to get their business units
+ */
+async function fetchSalespeopleMap() {
+  const { data: salespeople, error } = await supabase
+    .from('salespeople')
+    .select('name, business_unit')
+    .limit(1000);
+
+  if (error) {
+    console.error('Error fetching salespeople:', error);
+    throw new Error(`Failed to fetch salespeople: ${error.message}`);
+  }
+
+  // Create lookup map: salesperson name -> business_unit
+  const salespersonMap: { [name: string]: string } = {};
+  salespeople?.forEach(person => {
+    if (person.name && person.business_unit) {
+      salespersonMap[person.name] = person.business_unit;
+    }
+  });
+
+  console.log(`Loaded ${Object.keys(salespersonMap).length} salespeople with business units`);
+  return salespersonMap;
+}
+
+/**
  * Aggregate sales by department
  */
-function aggregateByDepartment(sales: any[]): SalesByDepartment {
+function aggregateByDepartment(sales: any[], salespersonMap: { [name: string]: string }): SalesByDepartment {
   const byDept: SalesByDepartment = {};
 
   // Initialize all departments
@@ -178,12 +196,13 @@ function aggregateByDepartment(sales: any[]): SalesByDepartment {
 
   // Aggregate sales
   sales.forEach(sale => {
-    const dept = sale.business_unit;
+    const salesperson = sale.salesperson;
+    const businessUnit = salespersonMap[salesperson];
     const amount = parseFloat(sale.amount);
 
-    if (SALES_DEPARTMENTS.includes(dept) && !isNaN(amount)) {
-      byDept[dept].total += amount;
-      byDept[dept].count++;
+    if (businessUnit && SALES_DEPARTMENTS.includes(businessUnit) && !isNaN(amount)) {
+      byDept[businessUnit].total += amount;
+      byDept[businessUnit].count++;
     }
   });
 
@@ -216,14 +235,21 @@ async function calculateWorkDays(startDate: string, endDate: string): Promise<nu
 
 /**
  * Fetch TGL count for a date range
+ * startDate and endDate should be in YYYY-MM-DD format
+ * We need to convert to full day ranges in Eastern Time
  */
 async function fetchTGLCount(startDate: string, endDate: string): Promise<number> {
+  // Convert YYYY-MM-DD to timestamp range
+  // Start at 00:00:00 ET, End at 23:59:59 ET
+  const startTimestamp = `${startDate}T00:00:00-05:00`; // EST (adjust for EDT if needed)
+  const endTimestamp = `${endDate}T23:59:59-05:00`;
+
   const { count, error } = await supabase
     .from('estimates')
     .select('id', { count: 'exact', head: true })
     .eq('is_tgl', true)
-    .gte('sold_at', startDate)
-    .lte('sold_at', endDate);
+    .gte('sold_at', startTimestamp)
+    .lte('sold_at', endTimestamp);
 
   if (error) {
     console.error('Error fetching TGL count:', error);
