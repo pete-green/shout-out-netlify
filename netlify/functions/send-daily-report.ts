@@ -42,11 +42,13 @@ export const handler: Handler = async (_event, _context) => {
     // Get date ranges in Eastern Time (YYYY-MM-DD format for RPC function)
     const todayDate = getTodayDateET();
     const monthStartDate = getMonthStartDateET();
+    const monthEndDate = getMonthEndDateET();
     const yearStartDate = getYearStartDateET();
+    const yearEndDate = getYearEndDateET();
 
     console.log(`Today date: ${todayDate}`);
-    console.log(`Month start date: ${monthStartDate}`);
-    console.log(`Year start date: ${yearStartDate}`);
+    console.log(`Month: ${monthStartDate} to ${monthEndDate}`);
+    console.log(`Year: ${yearStartDate} to ${yearEndDate}`);
 
     // Fetch salespeople map for business unit lookup
     const salespersonMap = await fetchSalespeopleMap();
@@ -66,9 +68,13 @@ export const handler: Handler = async (_event, _context) => {
     const ytdByDept = aggregateByDepartment(ytdSales, salespersonMap);
     const ytdTotal = calculateTotal(ytdByDept);
 
-    // Calculate work days for MTD and YTD
+    // Calculate work days for MTD and YTD (elapsed so far)
     const workDays = await calculateWorkDays(monthStartDate, todayDate);
     const ytdWorkDays = await calculateWorkDays(yearStartDate, todayDate);
+
+    // Calculate total work days for entire month and year
+    const totalMonthWorkDays = await calculateWorkDays(monthStartDate, monthEndDate);
+    const totalYearWorkDays = await calculateWorkDays(yearStartDate, yearEndDate);
 
     // Fetch TGL counts
     const todayTGLs = await fetchTGLCount(todayDate, todayDate);
@@ -79,6 +85,10 @@ export const handler: Handler = async (_event, _context) => {
     const ytdAvgSalesPerDay = ytdWorkDays > 0 ? ytdTotal / ytdWorkDays : 0;
     const avgTGLsPerDay = workDays > 0 ? mtdTGLs / workDays : 0;
 
+    // Calculate pace projections
+    const mtdPaceProjection = avgSalesPerDay * totalMonthWorkDays;
+    const ytdPaceProjection = ytdAvgSalesPerDay * totalYearWorkDays;
+
     // Format and send the report
     const reportCard = formatReportCard({
       todayTotal,
@@ -87,10 +97,14 @@ export const handler: Handler = async (_event, _context) => {
       mtdByDept,
       workDays,
       avgSalesPerDay,
+      totalMonthWorkDays,
+      mtdPaceProjection,
       ytdTotal,
       ytdByDept,
       ytdWorkDays,
       ytdAvgSalesPerDay,
+      totalYearWorkDays,
+      ytdPaceProjection,
       todayTGLs,
       mtdTGLs,
       avgTGLsPerDay,
@@ -143,6 +157,32 @@ function getYearStartDateET(): string {
   // Split YYYY-MM-DD and replace month and day with 01-01
   const [year] = etDateString.split('-');
   return `${year}-01-01`;
+}
+
+/**
+ * Get last day of current month in Eastern Time as YYYY-MM-DD format
+ */
+function getMonthEndDateET(): string {
+  const now = new Date();
+  const etDateString = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const [year, month] = etDateString.split('-');
+
+  // Create date for first day of next month, then subtract 1 day
+  const nextMonth = new Date(`${year}-${month}-01`);
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  nextMonth.setDate(0); // Sets to last day of previous month
+
+  return nextMonth.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
+/**
+ * Get last day of current year in Eastern Time as YYYY-MM-DD format
+ */
+function getYearEndDateET(): string {
+  const now = new Date();
+  const etDateString = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const [year] = etDateString.split('-');
+  return `${year}-12-31`;
 }
 
 /**
@@ -295,10 +335,14 @@ function formatReportCard(data: {
   mtdByDept: SalesByDepartment;
   workDays: number;
   avgSalesPerDay: number;
+  totalMonthWorkDays: number;
+  mtdPaceProjection: number;
   ytdTotal: number;
   ytdByDept: SalesByDepartment;
   ytdWorkDays: number;
   ytdAvgSalesPerDay: number;
+  totalYearWorkDays: number;
+  ytdPaceProjection: number;
   todayTGLs: number;
   mtdTGLs: number;
   avgTGLsPerDay: number;
@@ -409,7 +453,14 @@ function formatReportCard(data: {
               widgets: [
                 {
                   textParagraph: {
-                    text: `<b>Total: ${formatCurrency(data.mtdTotal)}</b>\n<b>Average per work day: ${formatCurrency(data.avgSalesPerDay)}</b>\n<b>Work days: ${data.workDays}</b>\n\n${mtdDeptLines}`,
+                    text: `<b>Total: ${formatCurrency(data.mtdTotal)}</b>\n<b>Average per work day: ${formatCurrency(data.avgSalesPerDay)}</b>\n<b>Work days: ${data.workDays} of ${data.totalMonthWorkDays}</b>\n\n${mtdDeptLines}`,
+                  },
+                },
+                {
+                  decoratedText: {
+                    topLabel: 'Month-End Projection (at current pace)',
+                    text: `<font color="#f9ab00"><b>${formatCurrency(data.mtdPaceProjection)}</b></font>`,
+                    bottomLabel: `Based on ${formatCurrency(data.avgSalesPerDay)}/day × ${data.totalMonthWorkDays} work days`,
                   },
                 },
               ],
@@ -434,8 +485,15 @@ function formatReportCard(data: {
                 {
                   decoratedText: {
                     topLabel: 'YTD Work Days',
-                    text: `<b>${data.ytdWorkDays} days</b>`,
+                    text: `<b>${data.ytdWorkDays} of ${data.totalYearWorkDays} days</b>`,
                     bottomLabel: 'Excludes weekends and company holidays',
+                  },
+                },
+                {
+                  decoratedText: {
+                    topLabel: 'Year-End Projection (at current pace)',
+                    text: `<font color="#9334e6"><b>${formatCurrency(data.ytdPaceProjection)}</b></font>`,
+                    bottomLabel: `Based on ${formatCurrency(data.ytdAvgSalesPerDay)}/day × ${data.totalYearWorkDays} work days`,
                   },
                 },
               ],
