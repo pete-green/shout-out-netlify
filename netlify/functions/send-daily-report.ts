@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { supabase } from './lib/supabase';
+import { calculateWorkDays as calculateWorkDaysFromHolidays } from './lib/holidays-service';
 
 // Hardcoded webhook URL for daily reports
 const DAILY_REPORT_WEBHOOK = 'https://chat.googleapis.com/v1/spaces/AAAAQCULUHM/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=D8HownKjGqw7V4Do1ptAosVz4jCqNi6rq9gXpOt4CTE';
@@ -41,9 +42,11 @@ export const handler: Handler = async (_event, _context) => {
     // Get date ranges in Eastern Time (YYYY-MM-DD format for RPC function)
     const todayDate = getTodayDateET();
     const monthStartDate = getMonthStartDateET();
+    const yearStartDate = getYearStartDateET();
 
     console.log(`Today date: ${todayDate}`);
     console.log(`Month start date: ${monthStartDate}`);
+    console.log(`Year start date: ${yearStartDate}`);
 
     // Fetch salespeople map for business unit lookup
     const salespersonMap = await fetchSalespeopleMap();
@@ -58,8 +61,14 @@ export const handler: Handler = async (_event, _context) => {
     const mtdByDept = aggregateByDepartment(mtdSales, salespersonMap);
     const mtdTotal = calculateTotal(mtdByDept);
 
-    // Calculate work days for MTD
+    // Fetch year-to-date sales data
+    const ytdSales = await fetchSalesData(yearStartDate, todayDate);
+    const ytdByDept = aggregateByDepartment(ytdSales, salespersonMap);
+    const ytdTotal = calculateTotal(ytdByDept);
+
+    // Calculate work days for MTD and YTD
     const workDays = await calculateWorkDays(monthStartDate, todayDate);
+    const ytdWorkDays = await calculateWorkDays(yearStartDate, todayDate);
 
     // Fetch TGL counts
     const todayTGLs = await fetchTGLCount(todayDate, todayDate);
@@ -67,6 +76,7 @@ export const handler: Handler = async (_event, _context) => {
 
     // Calculate averages
     const avgSalesPerDay = workDays > 0 ? mtdTotal / workDays : 0;
+    const ytdAvgSalesPerDay = ytdWorkDays > 0 ? ytdTotal / ytdWorkDays : 0;
     const avgTGLsPerDay = workDays > 0 ? mtdTGLs / workDays : 0;
 
     // Format and send the report
@@ -77,6 +87,10 @@ export const handler: Handler = async (_event, _context) => {
       mtdByDept,
       workDays,
       avgSalesPerDay,
+      ytdTotal,
+      ytdByDept,
+      ytdWorkDays,
+      ytdAvgSalesPerDay,
       todayTGLs,
       mtdTGLs,
       avgTGLsPerDay,
@@ -118,6 +132,17 @@ function getMonthStartDateET(): string {
   // Split YYYY-MM-DD and replace day with 01
   const [year, month] = etDateString.split('-');
   return `${year}-${month}-01`;
+}
+
+/**
+ * Get first day of current year in Eastern Time as YYYY-MM-DD format
+ */
+function getYearStartDateET(): string {
+  const now = new Date();
+  const etDateString = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  // Split YYYY-MM-DD and replace month and day with 01-01
+  const [year] = etDateString.split('-');
+  return `${year}-01-01`;
 }
 
 /**
@@ -228,19 +253,10 @@ function calculateTotal(byDept: SalesByDepartment): number {
 
 /**
  * Calculate work days in a date range (excluding weekends and holidays)
+ * Now uses the call-board API to fetch holidays
  */
 async function calculateWorkDays(startDate: string, endDate: string): Promise<number> {
-  const { data, error } = await supabase.rpc('calculate_work_days', {
-    p_start_date: startDate,
-    p_end_date: endDate,
-  });
-
-  if (error) {
-    console.error('Error calculating work days:', error);
-    throw new Error(`Failed to calculate work days: ${error.message}`);
-  }
-
-  return data || 0;
+  return await calculateWorkDaysFromHolidays(startDate, endDate);
 }
 
 /**
@@ -279,6 +295,10 @@ function formatReportCard(data: {
   mtdByDept: SalesByDepartment;
   workDays: number;
   avgSalesPerDay: number;
+  ytdTotal: number;
+  ytdByDept: SalesByDepartment;
+  ytdWorkDays: number;
+  ytdAvgSalesPerDay: number;
   todayTGLs: number;
   mtdTGLs: number;
   avgTGLsPerDay: number;
@@ -314,19 +334,50 @@ function formatReportCard(data: {
     })
     .join('\n');
 
+  // Calculate comparison percentages
+  const todayVsAvg = data.avgSalesPerDay > 0
+    ? ((data.todayTotal - data.avgSalesPerDay) / data.avgSalesPerDay * 100)
+    : 0;
+  const todayTrend = todayVsAvg >= 0 ? '🟢' : '🔴';
+  const todayTrendText = todayVsAvg >= 0
+    ? `+${todayVsAvg.toFixed(1)}% vs MTD avg`
+    : `${todayVsAvg.toFixed(1)}% vs MTD avg`;
+
   // Format card with proper sections and dividers
   return {
     cardsV2: [
       {
         cardId: `daily-report-${Date.now()}`,
         card: {
+          header: {
+            title: '📊 Sales Performance Report',
+            subtitle: `${dateString} • ${timeString} ET`,
+          },
           sections: [
-            // Header section
+            // Key Metrics Section
             {
+              header: '💰 KEY METRICS',
+              collapsible: false,
               widgets: [
                 {
-                  textParagraph: {
-                    text: `📊 *Sales Report*\n${dateString} • ${timeString} ET`,
+                  decoratedText: {
+                    topLabel: 'Today\'s Sales',
+                    text: `<font color="#1a73e8"><b>${formatCurrency(data.todayTotal)}</b></font>`,
+                    bottomLabel: `${todayTrend} ${todayTrendText}`,
+                  },
+                },
+                {
+                  decoratedText: {
+                    topLabel: 'MTD Average per Work Day',
+                    text: `<font color="#34a853"><b>${formatCurrency(data.avgSalesPerDay)}</b></font>`,
+                    bottomLabel: `${data.workDays} work days this month`,
+                  },
+                },
+                {
+                  decoratedText: {
+                    topLabel: 'YTD Average per Work Day',
+                    text: `<font color="#ea4335"><b>${formatCurrency(data.ytdAvgSalesPerDay)}</b></font>`,
+                    bottomLabel: `${data.ytdWorkDays} work days this year`,
                   },
                 },
               ],
@@ -339,30 +390,52 @@ function formatReportCard(data: {
                 },
               ],
             },
-            // Today's Sales section
+            // Today's Sales Detail section
             {
+              header: '📈 TODAY\'S SALES DETAIL',
+              collapsible: true,
               widgets: [
                 {
                   textParagraph: {
-                    text: `📈 *TODAY'S SALES*\n*Total: ${formatCurrency(data.todayTotal)}*\n\n${todayDeptLines}`,
+                    text: `<b>Total: ${formatCurrency(data.todayTotal)}</b>\n\n${todayDeptLines}`,
                   },
                 },
               ],
             },
-            // Divider
+            // MTD Sales Detail section
             {
-              widgets: [
-                {
-                  divider: {},
-                },
-              ],
-            },
-            // Month-to-Date Sales section
-            {
+              header: '📅 MONTH-TO-DATE DETAIL',
+              collapsible: true,
               widgets: [
                 {
                   textParagraph: {
-                    text: `📅 *MONTH-TO-DATE SALES*\n*Total: ${formatCurrency(data.mtdTotal)}*\n*Average per work day: ${formatCurrency(data.avgSalesPerDay)}*\n*Work days: ${data.workDays}*\n\n${mtdDeptLines}`,
+                    text: `<b>Total: ${formatCurrency(data.mtdTotal)}</b>\n<b>Average per work day: ${formatCurrency(data.avgSalesPerDay)}</b>\n<b>Work days: ${data.workDays}</b>\n\n${mtdDeptLines}`,
+                  },
+                },
+              ],
+            },
+            // YTD Summary section
+            {
+              header: '🎯 YEAR-TO-DATE SUMMARY',
+              collapsible: false,
+              widgets: [
+                {
+                  decoratedText: {
+                    topLabel: 'Total YTD Sales',
+                    text: `<b>${formatCurrency(data.ytdTotal)}</b>`,
+                  },
+                },
+                {
+                  decoratedText: {
+                    topLabel: 'Average Revenue per Work Day',
+                    text: `<b>${formatCurrency(data.ytdAvgSalesPerDay)}</b>`,
+                  },
+                },
+                {
+                  decoratedText: {
+                    topLabel: 'YTD Work Days',
+                    text: `<b>${data.ytdWorkDays} days</b>`,
+                    bottomLabel: 'Excludes weekends and company holidays',
                   },
                 },
               ],
@@ -377,10 +450,25 @@ function formatReportCard(data: {
             },
             // TGL Tracking section
             {
+              header: '🌟 TGL TRACKING',
+              collapsible: false,
               widgets: [
                 {
-                  textParagraph: {
-                    text: `🎯 *TGL TRACKING*\n*Today: ${data.todayTGLs} ${data.todayTGLs === 1 ? 'TGL' : 'TGLs'}*\n*MTD Average: ${data.avgTGLsPerDay.toFixed(1)} TGLs per work day*\n*MTD Total: ${data.mtdTGLs} ${data.mtdTGLs === 1 ? 'TGL' : 'TGLs'}*`,
+                  decoratedText: {
+                    topLabel: 'Today\'s TGLs',
+                    text: `<b>${data.todayTGLs} ${data.todayTGLs === 1 ? 'TGL' : 'TGLs'}</b>`,
+                  },
+                },
+                {
+                  decoratedText: {
+                    topLabel: 'MTD Average per Work Day',
+                    text: `<b>${data.avgTGLsPerDay.toFixed(1)} TGLs</b>`,
+                  },
+                },
+                {
+                  decoratedText: {
+                    topLabel: 'MTD Total',
+                    text: `<b>${data.mtdTGLs} ${data.mtdTGLs === 1 ? 'TGL' : 'TGLs'}</b>`,
                   },
                 },
               ],
