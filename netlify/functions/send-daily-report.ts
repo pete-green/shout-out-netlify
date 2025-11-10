@@ -22,7 +22,7 @@ interface SalesByDepartment {
   };
 }
 
-export const handler: Handler = async (event) => {
+export const handler: Handler = async (_event, _context) => {
   try {
     console.log('Starting daily sales report generation...');
 
@@ -218,7 +218,7 @@ async function calculateWorkDays(startDate: string, endDate: string): Promise<nu
  * Fetch TGL count for a date range
  */
 async function fetchTGLCount(startDate: string, endDate: string): Promise<number> {
-  const { data, error } = await supabase
+  const { count, error } = await supabase
     .from('estimates')
     .select('id', { count: 'exact', head: true })
     .eq('is_tgl', true)
@@ -230,7 +230,7 @@ async function fetchTGLCount(startDate: string, endDate: string): Promise<number
     throw new Error(`Failed to fetch TGL count: ${error.message}`);
   }
 
-  return data || 0;
+  return count || 0;
 }
 
 /**

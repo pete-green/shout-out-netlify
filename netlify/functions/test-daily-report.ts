@@ -7,14 +7,25 @@ import { handler as reportHandler } from './send-daily-report';
  *
  * Usage: POST to /.netlify/functions/test-daily-report
  */
-export const handler: Handler = async (event) => {
+export const handler: Handler = async (event, context) => {
   console.log('Manual test of daily sales report triggered');
 
   // Call the main report handler
-  const result = await reportHandler(event, {} as any);
+  const result = await reportHandler(event, context);
+
+  if (!result) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'No response from report handler' }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+  }
 
   return {
-    ...result,
+    statusCode: result.statusCode,
+    body: result.body,
     headers: {
       'Content-Type': 'application/json',
     },
