@@ -13,6 +13,7 @@ const SALES_DEPARTMENTS = [
   'Electrical Service',
   'Electrical Install',
   'Inside Sales',
+  'Other', // Catch-all for salespeople not in main departments
 ];
 
 interface SalesByDepartment {
@@ -189,6 +190,9 @@ async function fetchSalespeopleMap() {
 function aggregateByDepartment(sales: any[], salespersonMap: { [name: string]: string }): SalesByDepartment {
   const byDept: SalesByDepartment = {};
 
+  // Main 7 departments (excluding "Other")
+  const mainDepartments = SALES_DEPARTMENTS.slice(0, -1);
+
   // Initialize all departments
   SALES_DEPARTMENTS.forEach(dept => {
     byDept[dept] = { total: 0, count: 0 };
@@ -200,9 +204,15 @@ function aggregateByDepartment(sales: any[], salespersonMap: { [name: string]: s
     const businessUnit = salespersonMap[salesperson];
     const amount = parseFloat(sale.amount);
 
-    if (businessUnit && SALES_DEPARTMENTS.includes(businessUnit) && !isNaN(amount)) {
-      byDept[businessUnit].total += amount;
-      byDept[businessUnit].count++;
+    if (!isNaN(amount)) {
+      // If salesperson has a business unit in the main 7 departments, use it
+      // Otherwise, categorize as "Other"
+      const targetDept = businessUnit && mainDepartments.includes(businessUnit)
+        ? businessUnit
+        : 'Other';
+
+      byDept[targetDept].total += amount;
+      byDept[targetDept].count++;
     }
   });
 
@@ -288,9 +298,8 @@ function formatReportCard(data: {
     year: 'numeric',
   });
 
-  // Build department breakdown text for today
+  // Build department breakdown text for today (show all departments)
   const todayDeptLines = SALES_DEPARTMENTS
-    .filter(dept => data.todayByDept[dept].total > 0)
     .map(dept => {
       const { total, count } = data.todayByDept[dept];
       return `  • ${dept}: ${formatCurrency(total)} (${count} ${count === 1 ? 'sale' : 'sales'})`;
@@ -305,43 +314,73 @@ function formatReportCard(data: {
     })
     .join('\n');
 
-  const reportText = `📊 *Sales Report*
-${dateString} • ${timeString} ET
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-📈 *TODAY'S SALES*
-*Total: ${formatCurrency(data.todayTotal)}*
-
-${todayDeptLines || '  No sales yet today'}
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-📅 *MONTH-TO-DATE SALES*
-*Total: ${formatCurrency(data.mtdTotal)}*
-*Average per work day: ${formatCurrency(data.avgSalesPerDay)}*
-*Work days: ${data.workDays}*
-
-${mtdDeptLines}
-
-━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 *TGL TRACKING*
-*Today: ${data.todayTGLs} ${data.todayTGLs === 1 ? 'TGL' : 'TGLs'}*
-*MTD Average: ${data.avgTGLsPerDay.toFixed(1)} TGLs per work day*
-*MTD Total: ${data.mtdTGLs} ${data.mtdTGLs === 1 ? 'TGL' : 'TGLs'}*`;
-
+  // Format card with proper sections and dividers
   return {
     cardsV2: [
       {
         cardId: `daily-report-${Date.now()}`,
         card: {
           sections: [
+            // Header section
             {
               widgets: [
                 {
                   textParagraph: {
-                    text: reportText,
+                    text: `📊 *Sales Report*\n${dateString} • ${timeString} ET`,
+                  },
+                },
+              ],
+            },
+            // Divider
+            {
+              widgets: [
+                {
+                  divider: {},
+                },
+              ],
+            },
+            // Today's Sales section
+            {
+              widgets: [
+                {
+                  textParagraph: {
+                    text: `📈 *TODAY'S SALES*\n*Total: ${formatCurrency(data.todayTotal)}*\n\n${todayDeptLines}`,
+                  },
+                },
+              ],
+            },
+            // Divider
+            {
+              widgets: [
+                {
+                  divider: {},
+                },
+              ],
+            },
+            // Month-to-Date Sales section
+            {
+              widgets: [
+                {
+                  textParagraph: {
+                    text: `📅 *MONTH-TO-DATE SALES*\n*Total: ${formatCurrency(data.mtdTotal)}*\n*Average per work day: ${formatCurrency(data.avgSalesPerDay)}*\n*Work days: ${data.workDays}*\n\n${mtdDeptLines}`,
+                  },
+                },
+              ],
+            },
+            // Divider
+            {
+              widgets: [
+                {
+                  divider: {},
+                },
+              ],
+            },
+            // TGL Tracking section
+            {
+              widgets: [
+                {
+                  textParagraph: {
+                    text: `🎯 *TGL TRACKING*\n*Today: ${data.todayTGLs} ${data.todayTGLs === 1 ? 'TGL' : 'TGLs'}*\n*MTD Average: ${data.avgTGLsPerDay.toFixed(1)} TGLs per work day*\n*MTD Total: ${data.mtdTGLs} ${data.mtdTGLs === 1 ? 'TGL' : 'TGLs'}*`,
                   },
                 },
               ],
