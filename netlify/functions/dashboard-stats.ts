@@ -162,6 +162,10 @@ export const handler: Handler = async (event, _context) => {
 
       // Calculate statistics
       let companyTotal = 0;
+      let companyWQTotal = 0;
+      let companyWQCount = 0;
+      let companyAQTotal = 0;
+      let companyAQCount = 0;
       const departmentStats: { [key: string]: DepartmentStats } = {};
 
       // Initialize department stats (including "Other")
@@ -214,6 +218,16 @@ export const handler: Handler = async (event, _context) => {
 
         // ALWAYS add to company total, regardless of department
         companyTotal += amount;
+
+        // Track company-wide Water Quality and Air Quality
+        if (hasWQ) {
+          companyWQTotal += wqAmount;
+          companyWQCount += 1;
+        }
+        if (hasAQ) {
+          companyAQTotal += aqAmount;
+          companyAQCount += 1;
+        }
 
         // Check if person has a recognized business unit
         if (personData && departments.includes(personData.business_unit)) {
@@ -416,6 +430,14 @@ export const handler: Handler = async (event, _context) => {
         companyTotal,
         companyWorkDays: workDays,
         companyAvgPerWorkDay: workDays > 0 ? companyTotal / workDays : 0,
+        companyWaterQualityTotal: companyWQTotal,
+        companyWaterQualityCount: companyWQCount,
+        companyWaterQualityPercentage: companyTotal > 0 ? (companyWQTotal / companyTotal) * 100 : 0,
+        companyWaterQualityAverage: companyWQCount > 0 ? companyWQTotal / companyWQCount : 0,
+        companyAirQualityTotal: companyAQTotal,
+        companyAirQualityCount: companyAQCount,
+        companyAirQualityPercentage: companyTotal > 0 ? (companyAQTotal / companyTotal) * 100 : 0,
+        companyAirQualityAverage: companyAQCount > 0 ? companyAQTotal / companyAQCount : 0,
         departments: departmentArray,
         tglTotal,
         tglWorkDays: workDays,

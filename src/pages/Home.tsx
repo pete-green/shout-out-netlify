@@ -45,6 +45,14 @@ interface DashboardData {
   companyTotal: number;
   companyWorkDays: number;
   companyAvgPerWorkDay: number;
+  companyWaterQualityTotal: number;
+  companyWaterQualityCount: number;
+  companyWaterQualityPercentage: number;
+  companyWaterQualityAverage: number;
+  companyAirQualityTotal: number;
+  companyAirQualityCount: number;
+  companyAirQualityPercentage: number;
+  companyAirQualityAverage: number;
   departments: DepartmentStats[];
   tglTotal: number;
   tglWorkDays: number;
@@ -357,6 +365,72 @@ function Home() {
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* Water Quality Metrics */}
+              {data.companyWaterQualityCount > 0 && (
+                <div
+                  style={{
+                    borderTop: '1px solid #334155',
+                    marginTop: '1rem',
+                    paddingTop: '1rem',
+                  }}
+                >
+                  <div style={{ fontSize: '0.75rem', color: '#06b6d4', marginBottom: '0.5rem', fontWeight: '600' }}>
+                    💧 Water Quality
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
+                    <span style={{ color: '#94a3b8' }}>Total:</span>
+                    <span style={{ color: '#06b6d4', fontWeight: '600' }}>{formatCurrency(data.companyWaterQualityTotal)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
+                    <span style={{ color: '#94a3b8' }}>% of Sales:</span>
+                    <span style={{ color: '#06b6d4', fontWeight: '600' }}>{data.companyWaterQualityPercentage.toFixed(1)}%</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
+                    <span style={{ color: '#94a3b8' }}>Sales w/ WQ:</span>
+                    <span style={{ color: '#06b6d4', fontWeight: '600' }}>{data.companyWaterQualityCount}</span>
+                  </div>
+                  {data.companyWaterQualityAverage > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                      <span style={{ color: '#94a3b8' }}>Avg per WQ:</span>
+                      <span style={{ color: '#06b6d4', fontWeight: '600' }}>{formatCurrency(data.companyWaterQualityAverage)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Air Quality Metrics */}
+              {data.companyAirQualityCount > 0 && (
+                <div
+                  style={{
+                    borderTop: '1px solid #334155',
+                    marginTop: '1rem',
+                    paddingTop: '1rem',
+                  }}
+                >
+                  <div style={{ fontSize: '0.75rem', color: '#a78bfa', marginBottom: '0.5rem', fontWeight: '600' }}>
+                    🌪️  Air Quality
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
+                    <span style={{ color: '#94a3b8' }}>Total:</span>
+                    <span style={{ color: '#a78bfa', fontWeight: '600' }}>{formatCurrency(data.companyAirQualityTotal)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
+                    <span style={{ color: '#94a3b8' }}>% of Sales:</span>
+                    <span style={{ color: '#a78bfa', fontWeight: '600' }}>{data.companyAirQualityPercentage.toFixed(1)}%</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
+                    <span style={{ color: '#94a3b8' }}>Sales w/ AQ:</span>
+                    <span style={{ color: '#a78bfa', fontWeight: '600' }}>{data.companyAirQualityCount}</span>
+                  </div>
+                  {data.companyAirQualityAverage > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                      <span style={{ color: '#94a3b8' }}>Avg per AQ:</span>
+                      <span style={{ color: '#a78bfa', fontWeight: '600' }}>{formatCurrency(data.companyAirQualityAverage)}</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
