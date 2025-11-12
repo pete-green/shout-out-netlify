@@ -256,3 +256,181 @@ export async function listTechnicians(page = 1, pageSize = 100) {
   const data = await response.json();
   return data.data || [];
 }
+
+/**
+ * Fetch pricebook materials from ServiceTitan with pagination
+ * @param page Page number for pagination (default: 1)
+ * @param pageSize Number of results per page (default: 100, max: 100)
+ * @returns Pricebook materials data
+ */
+export async function getPricebookMaterials(page = 1, pageSize = 100) {
+  const bearerToken = await getServiceTitanToken();
+  const url = `${ST_CONFIG.baseUrl}/pricebook/v2/tenant/${ST_CONFIG.tenantId}/materials?page=${page}&pageSize=${pageSize}`;
+
+  console.log(`Fetching pricebook materials (page ${page}, pageSize ${pageSize})...`);
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${bearerToken}`,
+      'ST-App-Key': ST_CONFIG.applicationKey,
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Service Titan Pricebook API Error:', errorText);
+    throw new Error(`Failed to fetch pricebook materials: ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Fetch pricebook equipment from ServiceTitan with pagination
+ * @param page Page number for pagination (default: 1)
+ * @param pageSize Number of results per page (default: 100, max: 100)
+ * @returns Pricebook equipment data
+ */
+export async function getPricebookEquipment(page = 1, pageSize = 100) {
+  const bearerToken = await getServiceTitanToken();
+  const url = `${ST_CONFIG.baseUrl}/pricebook/v2/tenant/${ST_CONFIG.tenantId}/equipment?page=${page}&pageSize=${pageSize}`;
+
+  console.log(`Fetching pricebook equipment (page ${page}, pageSize ${pageSize})...`);
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${bearerToken}`,
+      'ST-App-Key': ST_CONFIG.applicationKey,
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Service Titan Pricebook API Error:', errorText);
+    throw new Error(`Failed to fetch pricebook equipment: ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Fetch pricebook services from ServiceTitan with pagination
+ * @param page Page number for pagination (default: 1)
+ * @param pageSize Number of results per page (default: 100, max: 100)
+ * @returns Pricebook services data
+ */
+export async function getPricebookServices(page = 1, pageSize = 100) {
+  const bearerToken = await getServiceTitanToken();
+  const url = `${ST_CONFIG.baseUrl}/pricebook/v2/tenant/${ST_CONFIG.tenantId}/services?page=${page}&pageSize=${pageSize}`;
+
+  console.log(`Fetching pricebook services (page ${page}, pageSize ${pageSize})...`);
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${bearerToken}`,
+      'ST-App-Key': ST_CONFIG.applicationKey,
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Service Titan Pricebook API Error:', errorText);
+    throw new Error(`Failed to fetch pricebook services: ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Fetch all pricebook items (materials, equipment, and services) from ServiceTitan
+ * This function handles pagination automatically and returns all items
+ * @returns Object containing all pricebook items categorized by type
+ */
+export async function getAllPricebookItems() {
+  console.log('🔄 Starting complete pricebook sync...');
+
+  const allItems = {
+    materials: [] as any[],
+    equipment: [] as any[],
+    services: [] as any[],
+  };
+
+  // Fetch all materials
+  console.log('\n📦 Fetching Materials...');
+  let page = 1;
+  let hasMore = true;
+  const pageSize = 100;
+
+  while (hasMore) {
+    const data = await getPricebookMaterials(page, pageSize);
+    const items = data.data || [];
+    allItems.materials.push(...items);
+
+    console.log(`  ✓ Page ${page}: ${items.length} materials (Total: ${allItems.materials.length})`);
+
+    hasMore = data.hasMore || (items.length === pageSize);
+    page++;
+
+    // Safety limit to prevent infinite loops
+    if (page > 1000) {
+      console.warn('⚠️  Reached page limit for materials');
+      break;
+    }
+  }
+
+  // Fetch all equipment
+  console.log('\n⚙️  Fetching Equipment...');
+  page = 1;
+  hasMore = true;
+
+  while (hasMore) {
+    const data = await getPricebookEquipment(page, pageSize);
+    const items = data.data || [];
+    allItems.equipment.push(...items);
+
+    console.log(`  ✓ Page ${page}: ${items.length} equipment (Total: ${allItems.equipment.length})`);
+
+    hasMore = data.hasMore || (items.length === pageSize);
+    page++;
+
+    if (page > 1000) {
+      console.warn('⚠️  Reached page limit for equipment');
+      break;
+    }
+  }
+
+  // Fetch all services
+  console.log('\n🛠️  Fetching Services...');
+  page = 1;
+  hasMore = true;
+
+  while (hasMore) {
+    const data = await getPricebookServices(page, pageSize);
+    const items = data.data || [];
+    allItems.services.push(...items);
+
+    console.log(`  ✓ Page ${page}: ${items.length} services (Total: ${allItems.services.length})`);
+
+    hasMore = data.hasMore || (items.length === pageSize);
+    page++;
+
+    if (page > 1000) {
+      console.warn('⚠️  Reached page limit for services');
+      break;
+    }
+  }
+
+  const totalItems = allItems.materials.length + allItems.equipment.length + allItems.services.length;
+  console.log(`\n✅ Pricebook sync complete: ${totalItems} total items`);
+  console.log(`   📦 Materials: ${allItems.materials.length}`);
+  console.log(`   ⚙️  Equipment: ${allItems.equipment.length}`);
+  console.log(`   🛠️  Services: ${allItems.services.length}`);
+
+  return allItems;
+}

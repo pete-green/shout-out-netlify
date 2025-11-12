@@ -6,6 +6,9 @@ interface TopSalesperson {
   total: number;
   count: number;
   headshot_url: string | null;
+  waterQualityTotal: number;
+  waterQualityCount: number;
+  waterQualityPercentage: number;
 }
 
 interface DepartmentStats {
@@ -14,6 +17,10 @@ interface DepartmentStats {
   count: number;
   topSalesperson: TopSalesperson | null;
   allSalespeople: TopSalesperson[];
+  waterQualityTotal: number;
+  waterQualityCount: number;
+  waterQualityPercentage: number;
+  waterQualityAverage: number;
 }
 
 interface TGLLeader {
@@ -455,6 +462,36 @@ function Home() {
                       </div>
                     </div>
                   )}
+                  {/* Water Quality Metrics */}
+                  {dept.waterQualityCount > 0 && (
+                    <div style={{
+                      borderTop: '1px solid #334155',
+                      paddingTop: '0.75rem',
+                      marginTop: '0.75rem'
+                    }}>
+                      <div style={{ fontSize: '0.625rem', color: '#06b6d4', marginBottom: '0.5rem', fontWeight: '600' }}>
+                        💧 Water Quality
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                        <span style={{ color: '#94a3b8' }}>Total:</span>
+                        <span style={{ color: '#06b6d4', fontWeight: '600' }}>{formatCurrency(dept.waterQualityTotal)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                        <span style={{ color: '#94a3b8' }}>% of Sales:</span>
+                        <span style={{ color: '#06b6d4', fontWeight: '600' }}>{dept.waterQualityPercentage.toFixed(1)}%</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                        <span style={{ color: '#94a3b8' }}>Sales w/ WQ:</span>
+                        <span style={{ color: '#06b6d4', fontWeight: '600' }}>{dept.waterQualityCount}</span>
+                      </div>
+                      {dept.waterQualityAverage > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                          <span style={{ color: '#94a3b8' }}>Avg per WQ:</span>
+                          <span style={{ color: '#06b6d4', fontWeight: '600' }}>{formatCurrency(dept.waterQualityAverage)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -684,6 +721,11 @@ function Home() {
                                   <span> • Per Work Day: {formatCurrency(dept.topSalesperson.total / data.companyWorkDays)}</span>
                                 )}
                               </div>
+                              {dept.topSalesperson.waterQualityCount > 0 && (
+                                <div style={{ fontSize: '0.75rem', color: '#06b6d4', marginTop: '0.25rem' }}>
+                                  💧 WQ: {formatCurrency(dept.topSalesperson.waterQualityTotal)} ({dept.topSalesperson.waterQualityPercentage.toFixed(1)}%) • {dept.topSalesperson.waterQualityCount} {dept.topSalesperson.waterQualityCount === 1 ? 'sale' : 'sales'}
+                                </div>
+                              )}
                             </>
                           ) : (
                             <div style={{ fontSize: '1rem', color: '#64748b', fontStyle: 'italic' }}>
@@ -809,6 +851,11 @@ function Home() {
                                     <span> • Per Work Day: {formatCurrency(person.total / data.companyWorkDays)}</span>
                                   )}
                                 </div>
+                                {person.waterQualityCount > 0 && (
+                                  <div style={{ fontSize: '0.7rem', color: '#06b6d4', marginTop: '0.25rem' }}>
+                                    💧 WQ: {formatCurrency(person.waterQualityTotal)} ({person.waterQualityPercentage.toFixed(1)}%) • {person.waterQualityCount} {person.waterQualityCount === 1 ? 'sale' : 'sales'}
+                                  </div>
+                                )}
                               </div>
                             </div>
 

@@ -17,6 +17,9 @@ interface Salesperson {
   total: number;
   count: number;
   headshot_url: string | null;
+  waterQualityTotal: number;
+  waterQualityCount: number;
+  waterQualityPercentage: number;
 }
 
 interface DepartmentStats {
@@ -25,6 +28,10 @@ interface DepartmentStats {
   count: number;
   topSalesperson: Salesperson | null;
   allSalespeople: Salesperson[]; // All salespeople ranked by total
+  waterQualityTotal: number;
+  waterQualityCount: number;
+  waterQualityPercentage: number;
+  waterQualityAverage: number;
 }
 
 interface TGLLeader {
@@ -158,6 +165,10 @@ export const handler: Handler = async (event, _context) => {
           count: 0,
           topSalesperson: null,
           allSalespeople: [],
+          waterQualityTotal: 0,
+          waterQualityCount: 0,
+          waterQualityPercentage: 0,
+          waterQualityAverage: 0,
         };
       });
 
@@ -168,15 +179,21 @@ export const handler: Handler = async (event, _context) => {
         count: 0,
         topSalesperson: null,
         allSalespeople: [],
+        waterQualityTotal: 0,
+        waterQualityCount: 0,
+        waterQualityPercentage: 0,
+        waterQualityAverage: 0,
       };
 
       // Group sales by department and salesperson
-      const salesByDeptAndPerson: { [dept: string]: { [person: string]: { total: number; count: number } } } = {};
+      const salesByDeptAndPerson: { [dept: string]: { [person: string]: { total: number; count: number; wqTotal: number; wqCount: number } } } = {};
 
       salesData?.forEach((sale: any) => {
         const salesperson = sale.salesperson;
         const personData = salespersonMap[salesperson];
         const amount = parseFloat(sale.amount);
+        const wqAmount = parseFloat(sale.water_quality_amount || 0);
+        const hasWQ = sale.has_water_quality || false;
 
         // ALWAYS add to company total, regardless of department
         companyTotal += amount;
@@ -189,29 +206,51 @@ export const handler: Handler = async (event, _context) => {
           departmentStats[businessUnit].total += amount;
           departmentStats[businessUnit].count += 1;
 
+          // Update Water Quality totals
+          if (hasWQ) {
+            departmentStats[businessUnit].waterQualityTotal += wqAmount;
+            departmentStats[businessUnit].waterQualityCount += 1;
+          }
+
           // Track by person for top performer calculation
           if (!salesByDeptAndPerson[businessUnit]) {
             salesByDeptAndPerson[businessUnit] = {};
           }
           if (!salesByDeptAndPerson[businessUnit][salesperson]) {
-            salesByDeptAndPerson[businessUnit][salesperson] = { total: 0, count: 0 };
+            salesByDeptAndPerson[businessUnit][salesperson] = { total: 0, count: 0, wqTotal: 0, wqCount: 0 };
           }
           salesByDeptAndPerson[businessUnit][salesperson].total += amount;
           salesByDeptAndPerson[businessUnit][salesperson].count += 1;
+
+          if (hasWQ) {
+            salesByDeptAndPerson[businessUnit][salesperson].wqTotal += wqAmount;
+            salesByDeptAndPerson[businessUnit][salesperson].wqCount += 1;
+          }
         } else {
           // Add to "Other" category for employees not in main departments
           departmentStats['Other'].total += amount;
           departmentStats['Other'].count += 1;
+
+          // Update Water Quality totals for Other
+          if (hasWQ) {
+            departmentStats['Other'].waterQualityTotal += wqAmount;
+            departmentStats['Other'].waterQualityCount += 1;
+          }
 
           // Track by person for top performer calculation in "Other"
           if (!salesByDeptAndPerson['Other']) {
             salesByDeptAndPerson['Other'] = {};
           }
           if (!salesByDeptAndPerson['Other'][salesperson]) {
-            salesByDeptAndPerson['Other'][salesperson] = { total: 0, count: 0 };
+            salesByDeptAndPerson['Other'][salesperson] = { total: 0, count: 0, wqTotal: 0, wqCount: 0 };
           }
           salesByDeptAndPerson['Other'][salesperson].total += amount;
           salesByDeptAndPerson['Other'][salesperson].count += 1;
+
+          if (hasWQ) {
+            salesByDeptAndPerson['Other'][salesperson].wqTotal += wqAmount;
+            salesByDeptAndPerson['Other'][salesperson].wqCount += 1;
+          }
         }
       });
 
@@ -220,12 +259,20 @@ export const handler: Handler = async (event, _context) => {
         const salespeople = salesByDeptAndPerson[dept];
 
         // Build array of all salespeople with their stats
-        const salespeopleArray: Salesperson[] = Object.keys(salespeople).map(person => ({
-          name: person,
-          total: salespeople[person].total,
-          count: salespeople[person].count,
-          headshot_url: salespersonMap[person]?.headshot_url || null,
-        }));
+        const salespeopleArray: Salesperson[] = Object.keys(salespeople).map(person => {
+          const personStats = salespeople[person];
+          const wqPercentage = personStats.total > 0 ? (personStats.wqTotal / personStats.total) * 100 : 0;
+
+          return {
+            name: person,
+            total: personStats.total,
+            count: personStats.count,
+            headshot_url: salespersonMap[person]?.headshot_url || null,
+            waterQualityTotal: personStats.wqTotal,
+            waterQualityCount: personStats.wqCount,
+            waterQualityPercentage: wqPercentage,
+          };
+        });
 
         // Sort by total descending
         salespeopleArray.sort((a, b) => b.total - a.total);
@@ -236,6 +283,16 @@ export const handler: Handler = async (event, _context) => {
         // Set top salesperson (first in sorted array)
         if (salespeopleArray.length > 0) {
           departmentStats[dept].topSalesperson = salespeopleArray[0];
+        }
+
+        // Calculate department Water Quality metrics
+        if (departmentStats[dept].total > 0) {
+          departmentStats[dept].waterQualityPercentage =
+            (departmentStats[dept].waterQualityTotal / departmentStats[dept].total) * 100;
+        }
+        if (departmentStats[dept].waterQualityCount > 0) {
+          departmentStats[dept].waterQualityAverage =
+            departmentStats[dept].waterQualityTotal / departmentStats[dept].waterQualityCount;
         }
       });
 

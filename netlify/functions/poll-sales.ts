@@ -1,6 +1,7 @@
 import { Handler, HandlerResponse } from '@netlify/functions';
 import { supabase } from './lib/supabase';
 import { getSoldEstimates, getTechnician, getCustomer } from './lib/servicetitan';
+import { calculateWaterQualityMetrics } from './lib/water-quality';
 
 /**
  * Create response with CORS headers
@@ -595,6 +596,30 @@ export const handler: Handler = async (event, _context) => {
           console.error(`❌ Failed to insert estimate ${estimateId}:`, estimateError);
           newlyProcessedIds.push(estimateId);
           continue;
+        }
+
+        // Calculate and update Water Quality metrics
+        try {
+          const wqMetrics = await calculateWaterQualityMetrics(estimate);
+
+          if (wqMetrics.hasWaterQuality) {
+            console.log(
+              `💧 Water Quality detected: $${wqMetrics.waterQualityAmount.toFixed(2)} (${wqMetrics.waterQualityItemCount} items)`
+            );
+
+            // Update estimate with WQ data
+            await supabase
+              .from('estimates')
+              .update({
+                has_water_quality: true,
+                water_quality_amount: wqMetrics.waterQualityAmount,
+                water_quality_item_count: wqMetrics.waterQualityItemCount,
+              })
+              .eq('id', insertedEstimate.id);
+          }
+        } catch (wqError: any) {
+          console.error(`⚠️  Failed to calculate Water Quality for ${estimateId}:`, wqError.message);
+          // Continue processing - don't fail the whole estimate for WQ calculation errors
         }
 
         // Send celebrations for TGL and/or Big Sales
