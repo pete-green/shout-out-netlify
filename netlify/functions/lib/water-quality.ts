@@ -1,7 +1,7 @@
 /**
- * Water Quality Calculation Utilities
+ * Cross-Sale Calculation Utilities
  *
- * Functions for identifying and calculating Water Quality cross-sale amounts
+ * Functions for identifying and calculating Water Quality and Air Quality cross-sale amounts
  * from ServiceTitan estimates
  */
 
@@ -102,40 +102,60 @@ async function getCrossSaleGroup(skuId: number): Promise<string | null> {
 }
 
 /**
- * Calculate Water Quality amount from an estimate's items
+ * Calculate cross-sale metrics (Water Quality & Air Quality) from an estimate's items
  * @param estimate The estimate object from ServiceTitan (must include items array)
- * @returns Object with Water Quality metrics
+ * @returns Object with both Water Quality and Air Quality metrics
  */
-export async function calculateWaterQualityMetrics(estimate: any): Promise<{
-  hasWaterQuality: boolean;
-  waterQualityAmount: number;
-  waterQualityItemCount: number;
-  waterQualityItems: Array<{
-    skuId: number;
-    skuName: string;
-    total: number;
-    quantity: number;
-  }>;
+export async function calculateCrossSaleMetrics(estimate: any): Promise<{
+  waterQuality: {
+    hasWaterQuality: boolean;
+    waterQualityAmount: number;
+    waterQualityItemCount: number;
+    waterQualityItems: Array<{
+      skuId: number;
+      skuName: string;
+      total: number;
+      quantity: number;
+    }>;
+  };
+  airQuality: {
+    hasAirQuality: boolean;
+    airQualityAmount: number;
+    airQualityItemCount: number;
+    airQualityItems: Array<{
+      skuId: number;
+      skuName: string;
+      total: number;
+      quantity: number;
+    }>;
+  };
 }> {
   const items = estimate.items || [];
 
   if (items.length === 0) {
     return {
-      hasWaterQuality: false,
-      waterQualityAmount: 0,
-      waterQualityItemCount: 0,
-      waterQualityItems: [],
+      waterQuality: {
+        hasWaterQuality: false,
+        waterQualityAmount: 0,
+        waterQualityItemCount: 0,
+        waterQualityItems: [],
+      },
+      airQuality: {
+        hasAirQuality: false,
+        airQualityAmount: 0,
+        airQualityItemCount: 0,
+        airQualityItems: [],
+      },
     };
   }
 
   let waterQualityAmount = 0;
   let waterQualityItemCount = 0;
-  const waterQualityItems: Array<{
-    skuId: number;
-    skuName: string;
-    total: number;
-    quantity: number;
-  }> = [];
+  const waterQualityItems: Array<{ skuId: number; skuName: string; total: number; quantity: number }> = [];
+
+  let airQualityAmount = 0;
+  let airQualityItemCount = 0;
+  const airQualityItems: Array<{ skuId: number; skuName: string; total: number; quantity: number }> = [];
 
   // Ensure cache is loaded before processing items
   await loadCrossSaleGroupCache();
@@ -150,7 +170,7 @@ export async function calculateWaterQualityMetrics(estimate: any): Promise<{
       continue; // Skip items without SKU ID
     }
 
-    // Check if this SKU belongs to Water Quality cross-sale group
+    // Check if this SKU belongs to a cross-sale group
     const crossSaleGroup = await getCrossSaleGroup(skuId);
 
     if (crossSaleGroup === 'WATER QUALITY') {
@@ -163,15 +183,54 @@ export async function calculateWaterQualityMetrics(estimate: any): Promise<{
         total: itemTotal,
         quantity,
       });
+    } else if (crossSaleGroup === 'AIR QUALITY') {
+      airQualityAmount += itemTotal;
+      airQualityItemCount++;
+
+      airQualityItems.push({
+        skuId,
+        skuName: item.sku?.displayName || item.sku?.name || `SKU #${skuId}`,
+        total: itemTotal,
+        quantity,
+      });
     }
   }
 
   return {
-    hasWaterQuality: waterQualityAmount > 0,
-    waterQualityAmount,
-    waterQualityItemCount,
-    waterQualityItems,
+    waterQuality: {
+      hasWaterQuality: waterQualityAmount > 0,
+      waterQualityAmount,
+      waterQualityItemCount,
+      waterQualityItems,
+    },
+    airQuality: {
+      hasAirQuality: airQualityAmount > 0,
+      airQualityAmount,
+      airQualityItemCount,
+      airQualityItems,
+    },
   };
+}
+
+/**
+ * Calculate Water Quality amount from an estimate's items
+ * @param estimate The estimate object from ServiceTitan (must include items array)
+ * @returns Object with Water Quality metrics
+ * @deprecated Use calculateCrossSaleMetrics instead for both WQ and AQ
+ */
+export async function calculateWaterQualityMetrics(estimate: any): Promise<{
+  hasWaterQuality: boolean;
+  waterQualityAmount: number;
+  waterQualityItemCount: number;
+  waterQualityItems: Array<{
+    skuId: number;
+    skuName: string;
+    total: number;
+    quantity: number;
+  }>;
+}> {
+  const result = await calculateCrossSaleMetrics(estimate);
+  return result.waterQuality;
 }
 
 /**

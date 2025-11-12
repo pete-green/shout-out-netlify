@@ -20,6 +20,9 @@ interface Salesperson {
   waterQualityTotal: number;
   waterQualityCount: number;
   waterQualityPercentage: number;
+  airQualityTotal: number;
+  airQualityCount: number;
+  airQualityPercentage: number;
 }
 
 interface DepartmentStats {
@@ -32,6 +35,10 @@ interface DepartmentStats {
   waterQualityCount: number;
   waterQualityPercentage: number;
   waterQualityAverage: number;
+  airQualityTotal: number;
+  airQualityCount: number;
+  airQualityPercentage: number;
+  airQualityAverage: number;
 }
 
 interface TGLLeader {
@@ -169,6 +176,10 @@ export const handler: Handler = async (event, _context) => {
           waterQualityCount: 0,
           waterQualityPercentage: 0,
           waterQualityAverage: 0,
+          airQualityTotal: 0,
+          airQualityCount: 0,
+          airQualityPercentage: 0,
+          airQualityAverage: 0,
         };
       });
 
@@ -183,10 +194,14 @@ export const handler: Handler = async (event, _context) => {
         waterQualityCount: 0,
         waterQualityPercentage: 0,
         waterQualityAverage: 0,
+        airQualityTotal: 0,
+        airQualityCount: 0,
+        airQualityPercentage: 0,
+        airQualityAverage: 0,
       };
 
       // Group sales by department and salesperson
-      const salesByDeptAndPerson: { [dept: string]: { [person: string]: { total: number; count: number; wqTotal: number; wqCount: number } } } = {};
+      const salesByDeptAndPerson: { [dept: string]: { [person: string]: { total: number; count: number; wqTotal: number; wqCount: number; aqTotal: number; aqCount: number } } } = {};
 
       salesData?.forEach((sale: any) => {
         const salesperson = sale.salesperson;
@@ -194,6 +209,8 @@ export const handler: Handler = async (event, _context) => {
         const amount = parseFloat(sale.amount);
         const wqAmount = parseFloat(sale.water_quality_amount || 0);
         const hasWQ = sale.has_water_quality || false;
+        const aqAmount = parseFloat(sale.air_quality_amount || 0);
+        const hasAQ = sale.has_air_quality || false;
 
         // ALWAYS add to company total, regardless of department
         companyTotal += amount;
@@ -212,12 +229,18 @@ export const handler: Handler = async (event, _context) => {
             departmentStats[businessUnit].waterQualityCount += 1;
           }
 
+          // Update Air Quality totals
+          if (hasAQ) {
+            departmentStats[businessUnit].airQualityTotal += aqAmount;
+            departmentStats[businessUnit].airQualityCount += 1;
+          }
+
           // Track by person for top performer calculation
           if (!salesByDeptAndPerson[businessUnit]) {
             salesByDeptAndPerson[businessUnit] = {};
           }
           if (!salesByDeptAndPerson[businessUnit][salesperson]) {
-            salesByDeptAndPerson[businessUnit][salesperson] = { total: 0, count: 0, wqTotal: 0, wqCount: 0 };
+            salesByDeptAndPerson[businessUnit][salesperson] = { total: 0, count: 0, wqTotal: 0, wqCount: 0, aqTotal: 0, aqCount: 0 };
           }
           salesByDeptAndPerson[businessUnit][salesperson].total += amount;
           salesByDeptAndPerson[businessUnit][salesperson].count += 1;
@@ -225,6 +248,11 @@ export const handler: Handler = async (event, _context) => {
           if (hasWQ) {
             salesByDeptAndPerson[businessUnit][salesperson].wqTotal += wqAmount;
             salesByDeptAndPerson[businessUnit][salesperson].wqCount += 1;
+          }
+
+          if (hasAQ) {
+            salesByDeptAndPerson[businessUnit][salesperson].aqTotal += aqAmount;
+            salesByDeptAndPerson[businessUnit][salesperson].aqCount += 1;
           }
         } else {
           // Add to "Other" category for employees not in main departments
@@ -237,12 +265,18 @@ export const handler: Handler = async (event, _context) => {
             departmentStats['Other'].waterQualityCount += 1;
           }
 
+          // Update Air Quality totals for Other
+          if (hasAQ) {
+            departmentStats['Other'].airQualityTotal += aqAmount;
+            departmentStats['Other'].airQualityCount += 1;
+          }
+
           // Track by person for top performer calculation in "Other"
           if (!salesByDeptAndPerson['Other']) {
             salesByDeptAndPerson['Other'] = {};
           }
           if (!salesByDeptAndPerson['Other'][salesperson]) {
-            salesByDeptAndPerson['Other'][salesperson] = { total: 0, count: 0, wqTotal: 0, wqCount: 0 };
+            salesByDeptAndPerson['Other'][salesperson] = { total: 0, count: 0, wqTotal: 0, wqCount: 0, aqTotal: 0, aqCount: 0 };
           }
           salesByDeptAndPerson['Other'][salesperson].total += amount;
           salesByDeptAndPerson['Other'][salesperson].count += 1;
@@ -250,6 +284,11 @@ export const handler: Handler = async (event, _context) => {
           if (hasWQ) {
             salesByDeptAndPerson['Other'][salesperson].wqTotal += wqAmount;
             salesByDeptAndPerson['Other'][salesperson].wqCount += 1;
+          }
+
+          if (hasAQ) {
+            salesByDeptAndPerson['Other'][salesperson].aqTotal += aqAmount;
+            salesByDeptAndPerson['Other'][salesperson].aqCount += 1;
           }
         }
       });
@@ -262,6 +301,7 @@ export const handler: Handler = async (event, _context) => {
         const salespeopleArray: Salesperson[] = Object.keys(salespeople).map(person => {
           const personStats = salespeople[person];
           const wqPercentage = personStats.total > 0 ? (personStats.wqTotal / personStats.total) * 100 : 0;
+          const aqPercentage = personStats.total > 0 ? (personStats.aqTotal / personStats.total) * 100 : 0;
 
           return {
             name: person,
@@ -271,6 +311,9 @@ export const handler: Handler = async (event, _context) => {
             waterQualityTotal: personStats.wqTotal,
             waterQualityCount: personStats.wqCount,
             waterQualityPercentage: wqPercentage,
+            airQualityTotal: personStats.aqTotal,
+            airQualityCount: personStats.aqCount,
+            airQualityPercentage: aqPercentage,
           };
         });
 
@@ -293,6 +336,16 @@ export const handler: Handler = async (event, _context) => {
         if (departmentStats[dept].waterQualityCount > 0) {
           departmentStats[dept].waterQualityAverage =
             departmentStats[dept].waterQualityTotal / departmentStats[dept].waterQualityCount;
+        }
+
+        // Calculate department Air Quality metrics
+        if (departmentStats[dept].total > 0) {
+          departmentStats[dept].airQualityPercentage =
+            (departmentStats[dept].airQualityTotal / departmentStats[dept].total) * 100;
+        }
+        if (departmentStats[dept].airQualityCount > 0) {
+          departmentStats[dept].airQualityAverage =
+            departmentStats[dept].airQualityTotal / departmentStats[dept].airQualityCount;
         }
       });
 

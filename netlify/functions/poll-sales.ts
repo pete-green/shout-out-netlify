@@ -1,7 +1,7 @@
 import { Handler, HandlerResponse } from '@netlify/functions';
 import { supabase } from './lib/supabase';
 import { getSoldEstimates, getTechnician, getCustomer } from './lib/servicetitan';
-import { calculateWaterQualityMetrics } from './lib/water-quality';
+import { calculateCrossSaleMetrics } from './lib/water-quality';
 
 /**
  * Create response with CORS headers
@@ -598,28 +598,40 @@ export const handler: Handler = async (event, _context) => {
           continue;
         }
 
-        // Calculate and update Water Quality metrics
+        // Calculate and update Water Quality and Air Quality metrics
         try {
-          const wqMetrics = await calculateWaterQualityMetrics(estimate);
+          const crossSaleMetrics = await calculateCrossSaleMetrics(estimate);
 
-          if (wqMetrics.hasWaterQuality) {
+          const updateData: any = {};
+
+          if (crossSaleMetrics.waterQuality.hasWaterQuality) {
             console.log(
-              `💧 Water Quality detected: $${wqMetrics.waterQualityAmount.toFixed(2)} (${wqMetrics.waterQualityItemCount} items)`
+              `💧 Water Quality detected: $${crossSaleMetrics.waterQuality.waterQualityAmount.toFixed(2)} (${crossSaleMetrics.waterQuality.waterQualityItemCount} items)`
             );
+            updateData.has_water_quality = true;
+            updateData.water_quality_amount = crossSaleMetrics.waterQuality.waterQualityAmount;
+            updateData.water_quality_item_count = crossSaleMetrics.waterQuality.waterQualityItemCount;
+          }
 
-            // Update estimate with WQ data
+          if (crossSaleMetrics.airQuality.hasAirQuality) {
+            console.log(
+              `🌪️  Air Quality detected: $${crossSaleMetrics.airQuality.airQualityAmount.toFixed(2)} (${crossSaleMetrics.airQuality.airQualityItemCount} items)`
+            );
+            updateData.has_air_quality = true;
+            updateData.air_quality_amount = crossSaleMetrics.airQuality.airQualityAmount;
+            updateData.air_quality_item_count = crossSaleMetrics.airQuality.airQualityItemCount;
+          }
+
+          // Update estimate with cross-sale data if any detected
+          if (Object.keys(updateData).length > 0) {
             await supabase
               .from('estimates')
-              .update({
-                has_water_quality: true,
-                water_quality_amount: wqMetrics.waterQualityAmount,
-                water_quality_item_count: wqMetrics.waterQualityItemCount,
-              })
+              .update(updateData)
               .eq('id', insertedEstimate.id);
           }
-        } catch (wqError: any) {
-          console.error(`⚠️  Failed to calculate Water Quality for ${estimateId}:`, wqError.message);
-          // Continue processing - don't fail the whole estimate for WQ calculation errors
+        } catch (csError: any) {
+          console.error(`⚠️  Failed to calculate cross-sale metrics for ${estimateId}:`, csError.message);
+          // Continue processing - don't fail the whole estimate for cross-sale calculation errors
         }
 
         // Send celebrations for TGL and/or Big Sales
