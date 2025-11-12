@@ -29,24 +29,39 @@ async function loadCrossSaleGroupCache(): Promise<void> {
   console.log('📚 Loading cross-sale group cache from database...');
 
   try {
-    const { data, error } = await supabase
-      .from('pricebook_items')
-      .select('sku_id, cross_sale_group')
-      .not('cross_sale_group', 'is', null);
+    // Fetch ALL items with pagination to avoid 1000 row limit
+    let allItems: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (error) {
-      console.error('Failed to load cross-sale group cache:', error);
-      throw error;
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('pricebook_items')
+        .select('sku_id, cross_sale_group')
+        .not('cross_sale_group', 'is', null)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (error) {
+        console.error('Failed to load cross-sale group cache:', error);
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        allItems.push(...data);
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
     }
 
     // Clear existing cache
     crossSaleGroupCache.clear();
 
     // Populate cache
-    if (data) {
-      for (const item of data) {
-        crossSaleGroupCache.set(item.sku_id, item.cross_sale_group);
-      }
+    for (const item of allItems) {
+      crossSaleGroupCache.set(item.sku_id, item.cross_sale_group);
     }
 
     cacheLastUpdated = now;
