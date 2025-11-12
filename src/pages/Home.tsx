@@ -9,6 +9,9 @@ interface TopSalesperson {
   waterQualityTotal: number;
   waterQualityCount: number;
   waterQualityPercentage: number;
+  airQualityTotal: number;
+  airQualityCount: number;
+  airQualityPercentage: number;
 }
 
 interface DepartmentStats {
@@ -21,6 +24,10 @@ interface DepartmentStats {
   waterQualityCount: number;
   waterQualityPercentage: number;
   waterQualityAverage: number;
+  airQualityTotal: number;
+  airQualityCount: number;
+  airQualityPercentage: number;
+  airQualityAverage: number;
 }
 
 interface TGLLeader {
@@ -492,6 +499,36 @@ function Home() {
                       )}
                     </div>
                   )}
+                  {/* Air Quality Metrics */}
+                  {dept.airQualityCount > 0 && (
+                    <div style={{
+                      borderTop: '1px solid #334155',
+                      paddingTop: '0.75rem',
+                      marginTop: '0.75rem'
+                    }}>
+                      <div style={{ fontSize: '0.625rem', color: '#a78bfa', marginBottom: '0.5rem', fontWeight: '600' }}>
+                        🌪️  Air Quality
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                        <span style={{ color: '#94a3b8' }}>Total:</span>
+                        <span style={{ color: '#a78bfa', fontWeight: '600' }}>{formatCurrency(dept.airQualityTotal)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                        <span style={{ color: '#94a3b8' }}>% of Sales:</span>
+                        <span style={{ color: '#a78bfa', fontWeight: '600' }}>{dept.airQualityPercentage.toFixed(1)}%</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                        <span style={{ color: '#94a3b8' }}>Sales w/ AQ:</span>
+                        <span style={{ color: '#a78bfa', fontWeight: '600' }}>{dept.airQualityCount}</span>
+                      </div>
+                      {dept.airQualityAverage > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                          <span style={{ color: '#94a3b8' }}>Avg per AQ:</span>
+                          <span style={{ color: '#a78bfa', fontWeight: '600' }}>{formatCurrency(dept.airQualityAverage)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -726,6 +763,11 @@ function Home() {
                                   💧 WQ: {formatCurrency(dept.topSalesperson.waterQualityTotal)} ({dept.topSalesperson.waterQualityPercentage.toFixed(1)}%) • {dept.topSalesperson.waterQualityCount} {dept.topSalesperson.waterQualityCount === 1 ? 'sale' : 'sales'}
                                 </div>
                               )}
+                              {dept.topSalesperson.airQualityCount > 0 && (
+                                <div style={{ fontSize: '0.75rem', color: '#a78bfa', marginTop: '0.25rem' }}>
+                                  🌪️  AQ: {formatCurrency(dept.topSalesperson.airQualityTotal)} ({dept.topSalesperson.airQualityPercentage.toFixed(1)}%) • {dept.topSalesperson.airQualityCount} {dept.topSalesperson.airQualityCount === 1 ? 'sale' : 'sales'}
+                                </div>
+                              )}
                             </>
                           ) : (
                             <div style={{ fontSize: '1rem', color: '#64748b', fontStyle: 'italic' }}>
@@ -854,6 +896,11 @@ function Home() {
                                 {person.waterQualityCount > 0 && (
                                   <div style={{ fontSize: '0.7rem', color: '#06b6d4', marginTop: '0.25rem' }}>
                                     💧 WQ: {formatCurrency(person.waterQualityTotal)} ({person.waterQualityPercentage.toFixed(1)}%) • {person.waterQualityCount} {person.waterQualityCount === 1 ? 'sale' : 'sales'}
+                                  </div>
+                                )}
+                                {person.airQualityCount > 0 && (
+                                  <div style={{ fontSize: '0.7rem', color: '#a78bfa', marginTop: '0.25rem' }}>
+                                    🌪️  AQ: {formatCurrency(person.airQualityTotal)} ({person.airQualityPercentage.toFixed(1)}%) • {person.airQualityCount} {person.airQualityCount === 1 ? 'sale' : 'sales'}
                                   </div>
                                 )}
                               </div>
