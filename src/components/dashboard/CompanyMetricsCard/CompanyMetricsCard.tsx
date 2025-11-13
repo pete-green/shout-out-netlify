@@ -35,8 +35,8 @@ export function CompanyMetricsCard({
   airQualityAverage,
   isTGL = false,
 }: CompanyMetricsCardProps) {
-  const hasWaterQuality = waterQualityCount && waterQualityCount > 0;
-  const hasAirQuality = airQualityCount && airQualityCount > 0;
+  const hasWaterQuality = waterQualityCount != null && waterQualityCount > 0 && (waterQualityTotal ?? 0) > 0;
+  const hasAirQuality = airQualityCount != null && airQualityCount > 0 && (airQualityTotal ?? 0) > 0;
 
   return (
     <Card className={styles.card}>

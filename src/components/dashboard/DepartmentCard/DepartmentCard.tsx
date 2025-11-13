@@ -33,8 +33,8 @@ export function DepartmentCard({
   const { isTouchDevice } = useDeviceType();
   const avgPerWorkDay = workDays > 0 ? total / workDays : 0;
   const borderColor = DEPARTMENT_COLORS[department] || DEPARTMENT_COLORS['Other'];
-  const hasWaterQuality = waterQualityCount && waterQualityCount > 0;
-  const hasAirQuality = airQualityCount && airQualityCount > 0;
+  const hasWaterQuality = waterQualityCount != null && waterQualityCount > 0 && (waterQualityTotal ?? 0) > 0;
+  const hasAirQuality = airQualityCount != null && airQualityCount > 0 && (airQualityTotal ?? 0) > 0;
 
   return (
     <Card
