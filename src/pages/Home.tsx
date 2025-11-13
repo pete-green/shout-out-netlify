@@ -1,94 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-
-interface TopSalesperson {
-  name: string;
-  total: number;
-  count: number;
-  headshot_url: string | null;
-  waterQualityTotal: number;
-  waterQualityCount: number;
-  waterQualityPercentage: number;
-  airQualityTotal: number;
-  airQualityCount: number;
-  airQualityPercentage: number;
-}
-
-interface DepartmentStats {
-  department: string;
-  total: number;
-  count: number;
-  topSalesperson: TopSalesperson | null;
-  allSalespeople: TopSalesperson[];
-  waterQualityTotal: number;
-  waterQualityCount: number;
-  waterQualityPercentage: number;
-  waterQualityAverage: number;
-  airQualityTotal: number;
-  airQualityCount: number;
-  airQualityPercentage: number;
-  airQualityAverage: number;
-}
-
-interface TGLLeader {
-  name: string;
-  tglCount: number;
-  department: string;
-  headshot_url: string | null;
-}
-
-interface DashboardData {
-  dateRange: {
-    start: string;
-    end: string;
-  };
-  companyTotal: number;
-  companyWorkDays: number;
-  companyAvgPerWorkDay: number;
-  companyWaterQualityTotal: number;
-  companyWaterQualityCount: number;
-  companyWaterQualityPercentage: number;
-  companyWaterQualityAverage: number;
-  companyAirQualityTotal: number;
-  companyAirQualityCount: number;
-  companyAirQualityPercentage: number;
-  companyAirQualityAverage: number;
-  departments: DepartmentStats[];
-  tglTotal: number;
-  tglWorkDays: number;
-  tglAvgPerWorkDay: number;
-  tglLeaders: TGLLeader[];
-  timestamp: string;
-}
+import { DashboardData } from '../types/dashboard';
+import { getTodayET, formatTimestamp, formatDateString } from '../utils/formatters';
+import { CompanyMetricsCard } from '../components/dashboard/CompanyMetricsCard';
+import { DepartmentGrid } from '../components/dashboard/DepartmentGrid';
+import { TGLLeaderboard } from '../components/dashboard/TGLLeaderboard';
+import { TopPerformers } from '../components/dashboard/TopPerformers';
+import { DateRangePicker } from '../components/dashboard/DateRangePicker';
+import styles from './Home.module.css';
 
 const API_URL = '/.netlify/functions';
-
-// Get today's date in YYYY-MM-DD format in Eastern Time
-function getTodayET(): string {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const parts = formatter.formatToParts(new Date());
-  const year = parts.find(p => p.type === 'year')!.value;
-  const month = parts.find(p => p.type === 'month')!.value;
-  const day = parts.find(p => p.type === 'day')!.value;
-  return `${year}-${month}-${day}`;
-}
-
-// Department color mapping
-const departmentColors: { [key: string]: string } = {
-  'Plumbing Service': '#3b82f6', // Blue
-  'Plumbing Install': '#0ea5e9', // Cyan
-  'HVAC Service': '#f59e0b', // Amber
-  'HVAC Install': '#f97316', // Orange
-  'Electrical Service': '#8b5cf6', // Purple
-  'Electrical Install': '#a855f7', // Violet
-  'Inside Sales': '#10b981', // Green
-  'Other': '#64748b', // Slate gray
-};
 
 function Home() {
   const [startDate, setStartDate] = useState<string>(getTodayET());
@@ -97,7 +18,6 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set());
 
   // Fetch dashboard data
   const fetchDashboard = async () => {
@@ -163,851 +83,113 @@ function Home() {
     };
   }, [startDate, endDate]);
 
-  // Format currency
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
+  if (loading && !data) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loading}>Loading dashboard...</div>
+      </div>
+    );
+  }
 
-  // Format timestamp
-  const formatTimestamp = (date: Date): string => {
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  };
-
-  // Format date string (YYYY-MM-DD) to local date display
-  // Avoids timezone conversion issues by treating the date as local
-  const formatDateString = (dateStr: string): string => {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const date = new Date(year, month - 1, day); // month is 0-indexed
-    return date.toLocaleDateString();
-  };
-
-  // Toggle department expansion
-  const toggleDepartment = (department: string) => {
-    setExpandedDepartments(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(department)) {
-        newSet.delete(department);
-      } else {
-        newSet.add(department);
-      }
-      return newSet;
-    });
-  };
-
-  return (
-    <div
-      style={{
-        padding: '2rem',
-        maxWidth: '1400px',
-        margin: '0 auto',
-        minHeight: 'calc(100vh - 80px)',
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          marginBottom: '2rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
-        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>
-          📊 Sales Dashboard
-        </h1>
-
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Date Range Picker */}
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={{
-                padding: '0.5rem',
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
-                borderRadius: '0.375rem',
-                color: '#f1f5f9',
-                fontSize: '0.875rem',
-              }}
-            />
-            <span style={{ color: '#94a3b8' }}>to</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              style={{
-                padding: '0.5rem',
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
-                borderRadius: '0.375rem',
-                color: '#f1f5f9',
-                fontSize: '0.875rem',
-              }}
-            />
-          </div>
-
-          {/* Refresh Button */}
-          <button
-            onClick={fetchDashboard}
-            disabled={loading}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              opacity: loading ? 0.5 : 1,
-            }}
-          >
-            {loading ? '⟳ Refreshing...' : '🔄 Refresh'}
+  if (error) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.error}>
+          <h2>Error Loading Dashboard</h2>
+          <p>{error}</p>
+          <button onClick={fetchDashboard} className={styles.retryButton}>
+            Retry
           </button>
         </div>
       </div>
+    );
+  }
 
-      {/* Last Updated */}
-      {lastUpdated && !loading && (
-        <div style={{ marginBottom: '1rem', color: '#64748b', fontSize: '0.875rem' }}>
-          Last updated: {formatTimestamp(lastUpdated)}
-        </div>
-      )}
+  if (!data) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.error}>No data available</div>
+      </div>
+    );
+  }
 
-      {/* Error State */}
-      {error && (
-        <div
-          style={{
-            padding: '1rem',
-            backgroundColor: '#7f1d1d',
-            border: '1px solid #991b1b',
-            borderRadius: '0.5rem',
-            marginBottom: '2rem',
-          }}
-        >
-          <p style={{ margin: 0, color: '#fca5a5' }}>❌ {error}</p>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {loading && !data && (
-        <div style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⟳</div>
-          <p>Loading dashboard data...</p>
-        </div>
-      )}
-
-      {/* Dashboard Content */}
-      {data && (
-        <>
-          {/* Top Cards: Company Total & TGL Total */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              gap: '1.5rem',
-              marginBottom: '2rem',
-            }}
-          >
-            {/* Company Total Card */}
-            <div
-              style={{
-                backgroundColor: '#1e293b',
-                border: '2px solid #3b82f6',
-                borderRadius: '0.75rem',
-                padding: '2rem',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: '1rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
-                Company Total
-              </div>
-              <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#3b82f6' }}>
-                {formatCurrency(data.companyTotal)}
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
-                {startDate === endDate
-                  ? `for ${formatDateString(startDate)}`
-                  : `${formatDateString(startDate)} - ${formatDateString(endDate)}`}
-              </div>
-
-              {/* Per Work Day Average */}
-              {data.companyWorkDays > 0 && (
-                <>
-                  <div
-                    style={{
-                      borderTop: '1px solid #334155',
-                      marginTop: '1rem',
-                      paddingTop: '1rem',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
-                      Per Work Day
-                    </div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#60a5fa' }}>
-                      {formatCurrency(data.companyAvgPerWorkDay)}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      ({data.companyWorkDays} work {data.companyWorkDays === 1 ? 'day' : 'days'})
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Water Quality Metrics */}
-              {data.companyWaterQualityCount > 0 && (
-                <div
-                  style={{
-                    borderTop: '1px solid #334155',
-                    marginTop: '1rem',
-                    paddingTop: '1rem',
-                  }}
-                >
-                  <div style={{ fontSize: '0.75rem', color: '#06b6d4', marginBottom: '0.5rem', fontWeight: '600' }}>
-                    💧 Water Quality
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
-                    <span style={{ color: '#94a3b8' }}>Total:</span>
-                    <span style={{ color: '#06b6d4', fontWeight: '600' }}>{formatCurrency(data.companyWaterQualityTotal)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
-                    <span style={{ color: '#94a3b8' }}>% of Sales:</span>
-                    <span style={{ color: '#06b6d4', fontWeight: '600' }}>{data.companyWaterQualityPercentage.toFixed(1)}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
-                    <span style={{ color: '#94a3b8' }}>Sales w/ WQ:</span>
-                    <span style={{ color: '#06b6d4', fontWeight: '600' }}>{data.companyWaterQualityCount}</span>
-                  </div>
-                  {data.companyWaterQualityAverage > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                      <span style={{ color: '#94a3b8' }}>Avg per WQ:</span>
-                      <span style={{ color: '#06b6d4', fontWeight: '600' }}>{formatCurrency(data.companyWaterQualityAverage)}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Air Quality Metrics */}
-              {data.companyAirQualityCount > 0 && (
-                <div
-                  style={{
-                    borderTop: '1px solid #334155',
-                    marginTop: '1rem',
-                    paddingTop: '1rem',
-                  }}
-                >
-                  <div style={{ fontSize: '0.75rem', color: '#a78bfa', marginBottom: '0.5rem', fontWeight: '600' }}>
-                    🌪️  Air Quality
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
-                    <span style={{ color: '#94a3b8' }}>Total:</span>
-                    <span style={{ color: '#a78bfa', fontWeight: '600' }}>{formatCurrency(data.companyAirQualityTotal)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
-                    <span style={{ color: '#94a3b8' }}>% of Sales:</span>
-                    <span style={{ color: '#a78bfa', fontWeight: '600' }}>{data.companyAirQualityPercentage.toFixed(1)}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
-                    <span style={{ color: '#94a3b8' }}>Sales w/ AQ:</span>
-                    <span style={{ color: '#a78bfa', fontWeight: '600' }}>{data.companyAirQualityCount}</span>
-                  </div>
-                  {data.companyAirQualityAverage > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                      <span style={{ color: '#94a3b8' }}>Avg per AQ:</span>
-                      <span style={{ color: '#a78bfa', fontWeight: '600' }}>{formatCurrency(data.companyAirQualityAverage)}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* TGL Total Card */}
-            <div
-              style={{
-                backgroundColor: '#1e293b',
-                border: '2px solid #10b981',
-                borderRadius: '0.75rem',
-                padding: '2rem',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: '1rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
-                Total TGLs
-              </div>
-              <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#10b981' }}>
-                {data.tglTotal}
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
-                {startDate === endDate
-                  ? `for ${formatDateString(startDate)}`
-                  : `${formatDateString(startDate)} - ${formatDateString(endDate)}`}
-              </div>
-
-              {/* Per Work Day Average */}
-              {data.tglWorkDays > 0 && (
-                <>
-                  <div
-                    style={{
-                      borderTop: '1px solid #334155',
-                      marginTop: '1rem',
-                      paddingTop: '1rem',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
-                      Per Work Day
-                    </div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#34d399' }}>
-                      {data.tglAvgPerWorkDay.toFixed(2)}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      ({data.tglWorkDays} work {data.tglWorkDays === 1 ? 'day' : 'days'})
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+  return (
+    <div className={styles.container}>
+      {/* Header Section */}
+      <div className={styles.header}>
+        <div className={styles.headerTop}>
+          <h2 className={styles.title}>Sales Dashboard</h2>
+          <div className={styles.dateInfo}>
+            {formatDateString(data.dateRange.start)} - {formatDateString(data.dateRange.end)}
           </div>
+        </div>
 
-          {/* Department Sales Grid */}
-          <div style={{ marginBottom: '3rem' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
-              Department Sales
-            </h2>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-                gap: '1rem',
-              }}
-            >
-              {data.departments.map((dept) => (
-                <div
-                  key={dept.department}
-                  style={{
-                    backgroundColor: '#1e293b',
-                    border: `2px solid ${departmentColors[dept.department] || '#334155'}`,
-                    borderRadius: '0.5rem',
-                    padding: '1.5rem',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    cursor: 'default',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = `0 10px 25px -5px ${departmentColors[dept.department]}40`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: '0.875rem',
-                      fontWeight: '600',
-                      color: departmentColors[dept.department] || '#94a3b8',
-                      marginBottom: '0.75rem',
-                    }}
-                  >
-                    {dept.department}
-                  </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                    {formatCurrency(dept.total)}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.5rem' }}>
-                    {dept.count} {dept.count === 1 ? 'sale' : 'sales'}
-                  </div>
-                  {data.companyWorkDays > 0 && (
-                    <div style={{
-                      borderTop: '1px solid #334155',
-                      paddingTop: '0.75rem',
-                      marginTop: '0.5rem'
-                    }}>
-                      <div style={{ fontSize: '0.625rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
-                        Per Work Day
-                      </div>
-                      <div style={{ fontSize: '1.125rem', fontWeight: 'bold', color: departmentColors[dept.department] || '#94a3b8' }}>
-                        {formatCurrency(dept.total / data.companyWorkDays)}
-                      </div>
-                    </div>
-                  )}
-                  {/* Water Quality Metrics */}
-                  {dept.waterQualityCount > 0 && (
-                    <div style={{
-                      borderTop: '1px solid #334155',
-                      paddingTop: '0.75rem',
-                      marginTop: '0.75rem'
-                    }}>
-                      <div style={{ fontSize: '0.625rem', color: '#06b6d4', marginBottom: '0.5rem', fontWeight: '600' }}>
-                        💧 Water Quality
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                        <span style={{ color: '#94a3b8' }}>Total:</span>
-                        <span style={{ color: '#06b6d4', fontWeight: '600' }}>{formatCurrency(dept.waterQualityTotal)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                        <span style={{ color: '#94a3b8' }}>% of Sales:</span>
-                        <span style={{ color: '#06b6d4', fontWeight: '600' }}>{dept.waterQualityPercentage.toFixed(1)}%</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                        <span style={{ color: '#94a3b8' }}>Sales w/ WQ:</span>
-                        <span style={{ color: '#06b6d4', fontWeight: '600' }}>{dept.waterQualityCount}</span>
-                      </div>
-                      {dept.waterQualityAverage > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                          <span style={{ color: '#94a3b8' }}>Avg per WQ:</span>
-                          <span style={{ color: '#06b6d4', fontWeight: '600' }}>{formatCurrency(dept.waterQualityAverage)}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {/* Air Quality Metrics */}
-                  {dept.airQualityCount > 0 && (
-                    <div style={{
-                      borderTop: '1px solid #334155',
-                      paddingTop: '0.75rem',
-                      marginTop: '0.75rem'
-                    }}>
-                      <div style={{ fontSize: '0.625rem', color: '#a78bfa', marginBottom: '0.5rem', fontWeight: '600' }}>
-                        🌪️  Air Quality
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                        <span style={{ color: '#94a3b8' }}>Total:</span>
-                        <span style={{ color: '#a78bfa', fontWeight: '600' }}>{formatCurrency(dept.airQualityTotal)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                        <span style={{ color: '#94a3b8' }}>% of Sales:</span>
-                        <span style={{ color: '#a78bfa', fontWeight: '600' }}>{dept.airQualityPercentage.toFixed(1)}%</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                        <span style={{ color: '#94a3b8' }}>Sales w/ AQ:</span>
-                        <span style={{ color: '#a78bfa', fontWeight: '600' }}>{dept.airQualityCount}</span>
-                      </div>
-                      {dept.airQualityAverage > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                          <span style={{ color: '#94a3b8' }}>Avg per AQ:</span>
-                          <span style={{ color: '#a78bfa', fontWeight: '600' }}>{formatCurrency(dept.airQualityAverage)}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+        <DateRangePicker
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          onRefresh={fetchDashboard}
+          lastUpdated={lastUpdated}
+          formatTimestamp={formatTimestamp}
+        />
+      </div>
+
+      {/* Company Metrics Cards */}
+      <div className={styles.companyMetrics}>
+        <CompanyMetricsCard
+          title="Company Total Sales"
+          total={data.companyTotal}
+          workDays={data.companyWorkDays}
+          avgPerWorkDay={data.companyAvgPerWorkDay}
+          waterQualityTotal={data.companyWaterQualityTotal}
+          waterQualityCount={data.companyWaterQualityCount}
+          waterQualityPercentage={data.companyWaterQualityPercentage}
+          waterQualityAverage={data.companyWaterQualityAverage}
+          airQualityTotal={data.companyAirQualityTotal}
+          airQualityCount={data.companyAirQualityCount}
+          airQualityPercentage={data.companyAirQualityPercentage}
+          airQualityAverage={data.companyAirQualityAverage}
+        />
+
+        <CompanyMetricsCard
+          title="Total TGLs"
+          total={data.tglTotal}
+          workDays={data.tglWorkDays}
+          avgPerWorkDay={data.tglAvgPerWorkDay}
+          isTGL={true}
+        />
+      </div>
+
+      {/* Department Sales Section */}
+      <div className={styles.section}>
+        <h3 className={styles.sectionTitle}>Department Sales</h3>
+        <DepartmentGrid
+          departments={data.departments}
+          workDays={data.companyWorkDays}
+        />
+      </div>
+
+      {/* TGL Leaderboard and Top Performers */}
+      <div className={styles.bottomSection}>
+        {/* TGL Leaderboard */}
+        {data.tglLeaders && data.tglLeaders.length > 0 && (
+          <div className={styles.leaderboardSection}>
+            <TGLLeaderboard
+              leaders={data.tglLeaders}
+              workDays={data.tglWorkDays}
+            />
           </div>
+        )}
 
-          {/* TGL Leaderboard */}
-          {data.tglLeaders && data.tglLeaders.length > 0 && (
-            <div style={{ marginBottom: '3rem' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
-                🎯 TGL Leaderboard
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {data.tglLeaders.map((leader, index) => (
-                  <div
-                    key={leader.name}
-                    style={{
-                      backgroundColor: '#1e293b',
-                      border: index === 0 ? '2px solid #10b981' : '1px solid #334155',
-                      borderRadius: '0.5rem',
-                      padding: '1.25rem',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '1rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      {/* Rank badge */}
-                      <div
-                        style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          backgroundColor: index === 0 ? '#10b981' : '#334155',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.25rem',
-                          fontWeight: 'bold',
-                          color: index === 0 ? '#ffffff' : '#94a3b8',
-                        }}
-                      >
-                        {index + 1}
-                      </div>
-
-                      {/* Headshot or initial */}
-                      {leader.headshot_url ? (
-                        <img
-                          src={leader.headshot_url}
-                          alt={leader.name}
-                          style={{
-                            width: '60px',
-                            height: '60px',
-                            objectFit: 'cover',
-                            borderRadius: '50%',
-                            border: '2px solid #10b981',
-                          }}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: '50%',
-                            backgroundColor: '#334155',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '1.5rem',
-                            fontWeight: 'bold',
-                            color: '#94a3b8',
-                            border: '2px solid #10b981',
-                          }}
-                        >
-                          {leader.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-
-                      {/* Name and department */}
-                      <div>
-                        <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
-                          {leader.name}
-                        </div>
-                        <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                          {leader.department}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* TGL count */}
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end', marginBottom: '0.25rem' }}>
-                        <div
-                          style={{
-                            fontSize: '2rem',
-                            fontWeight: 'bold',
-                            color: '#10b981',
-                          }}
-                        >
-                          {leader.tglCount}
-                        </div>
-                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                          {leader.tglCount === 1 ? 'TGL' : 'TGLs'}
-                        </div>
-                      </div>
-                      {data.tglWorkDays > 0 && (
-                        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                          {(leader.tglCount / data.tglWorkDays).toFixed(2)} per work day
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Top Performers */}
-          <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
-              🏆 Top Performers by Department
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {data.departments.map((dept) => {
-                const isExpanded = expandedDepartments.has(dept.department);
-                const hasMultipleSalespeople = dept.allSalespeople.length > 1;
-
-                return (
-                  <div
-                    key={dept.department}
-                    style={{
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
-                      borderRadius: '0.5rem',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {/* Header - Always visible */}
-                    <div
-                      onClick={() => hasMultipleSalespeople && toggleDepartment(dept.department)}
-                      style={{
-                        padding: '1.25rem',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '1rem',
-                        cursor: hasMultipleSalespeople ? 'pointer' : 'default',
-                        transition: 'background-color 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (hasMultipleSalespeople) {
-                          e.currentTarget.style.backgroundColor = '#334155';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
-                        <div
-                          style={{
-                            width: '4px',
-                            height: '60px',
-                            backgroundColor: departmentColors[dept.department] || '#334155',
-                            borderRadius: '2px',
-                          }}
-                        />
-                        {dept.topSalesperson && dept.topSalesperson.headshot_url ? (
-                          <img
-                            src={dept.topSalesperson.headshot_url}
-                            alt={dept.topSalesperson.name}
-                            style={{
-                              width: '60px',
-                              height: '60px',
-                              objectFit: 'cover',
-                              borderRadius: '50%',
-                              border: `2px solid ${departmentColors[dept.department] || '#475569'}`,
-                            }}
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                          />
-                        ) : null}
-                        {dept.topSalesperson && !dept.topSalesperson.headshot_url ? (
-                          <div
-                            style={{
-                              width: '60px',
-                              height: '60px',
-                              borderRadius: '50%',
-                              backgroundColor: '#334155',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '1.5rem',
-                              fontWeight: 'bold',
-                              color: '#94a3b8',
-                              border: `2px solid ${departmentColors[dept.department] || '#475569'}`,
-                            }}
-                          >
-                            {dept.topSalesperson.name.charAt(0).toUpperCase()}
-                          </div>
-                        ) : null}
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                            {dept.department}
-                            {hasMultipleSalespeople && (
-                              <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem' }}>
-                                ({dept.allSalespeople.length} {dept.allSalespeople.length === 1 ? 'person' : 'people'})
-                              </span>
-                            )}
-                          </div>
-                          {dept.topSalesperson ? (
-                            <>
-                              <div style={{ fontSize: '1.125rem', fontWeight: '600' }}>
-                                {dept.topSalesperson.name}
-                              </div>
-                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                {dept.topSalesperson.count} {dept.topSalesperson.count === 1 ? 'sale' : 'sales'} • Avg: {formatCurrency(dept.topSalesperson.total / dept.topSalesperson.count)}
-                                {data.companyWorkDays > 0 && (
-                                  <span> • Per Work Day: {formatCurrency(dept.topSalesperson.total / data.companyWorkDays)}</span>
-                                )}
-                              </div>
-                              {dept.topSalesperson.waterQualityCount > 0 && (
-                                <div style={{ fontSize: '0.75rem', color: '#06b6d4', marginTop: '0.25rem' }}>
-                                  💧 WQ: {formatCurrency(dept.topSalesperson.waterQualityTotal)} ({dept.topSalesperson.waterQualityPercentage.toFixed(1)}%) • {dept.topSalesperson.waterQualityCount} {dept.topSalesperson.waterQualityCount === 1 ? 'sale' : 'sales'}
-                                </div>
-                              )}
-                              {dept.topSalesperson.airQualityCount > 0 && (
-                                <div style={{ fontSize: '0.75rem', color: '#a78bfa', marginTop: '0.25rem' }}>
-                                  🌪️  AQ: {formatCurrency(dept.topSalesperson.airQualityTotal)} ({dept.topSalesperson.airQualityPercentage.toFixed(1)}%) • {dept.topSalesperson.airQualityCount} {dept.topSalesperson.airQualityCount === 1 ? 'sale' : 'sales'}
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div style={{ fontSize: '1rem', color: '#64748b', fontStyle: 'italic' }}>
-                              No sales yet
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        {dept.topSalesperson && (
-                          <div
-                            style={{
-                              fontSize: '1.5rem',
-                              fontWeight: 'bold',
-                              color: departmentColors[dept.department] || '#94a3b8',
-                            }}
-                          >
-                            {formatCurrency(dept.topSalesperson.total)}
-                          </div>
-                        )}
-                        {hasMultipleSalespeople && (
-                          <div
-                            style={{
-                              fontSize: '1.25rem',
-                              color: '#64748b',
-                              transition: 'transform 0.2s',
-                              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                            }}
-                          >
-                            ▼
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Expanded content - All salespeople */}
-                    {isExpanded && hasMultipleSalespeople && (
-                      <div
-                        style={{
-                          borderTop: '1px solid #334155',
-                          backgroundColor: '#0f172a',
-                          padding: '1rem',
-                        }}
-                      >
-                        {dept.allSalespeople.slice(1).map((person, index) => (
-                          <div
-                            key={person.name}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              padding: '0.75rem',
-                              marginBottom: index < dept.allSalespeople.length - 2 ? '0.5rem' : 0,
-                              backgroundColor: '#1e293b',
-                              borderRadius: '0.375rem',
-                              border: '1px solid #334155',
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              {/* Rank badge */}
-                              <div
-                                style={{
-                                  width: '32px',
-                                  height: '32px',
-                                  borderRadius: '50%',
-                                  backgroundColor: '#334155',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '0.875rem',
-                                  fontWeight: 'bold',
-                                  color: '#94a3b8',
-                                }}
-                              >
-                                {index + 2}
-                              </div>
-
-                              {/* Headshot or initial */}
-                              {person.headshot_url ? (
-                                <img
-                                  src={person.headshot_url}
-                                  alt={person.name}
-                                  style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    objectFit: 'cover',
-                                    borderRadius: '50%',
-                                    border: '1px solid #475569',
-                                  }}
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                  }}
-                                />
-                              ) : (
-                                <div
-                                  style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    borderRadius: '50%',
-                                    backgroundColor: '#334155',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '1rem',
-                                    fontWeight: 'bold',
-                                    color: '#94a3b8',
-                                    border: '1px solid #475569',
-                                  }}
-                                >
-                                  {person.name.charAt(0).toUpperCase()}
-                                </div>
-                              )}
-
-                              {/* Name and sales count */}
-                              <div>
-                                <div style={{ fontSize: '0.9375rem', fontWeight: '500' }}>
-                                  {person.name}
-                                </div>
-                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                  {person.count} {person.count === 1 ? 'sale' : 'sales'} • Avg: {formatCurrency(person.total / person.count)}
-                                  {data.companyWorkDays > 0 && (
-                                    <span> • Per Work Day: {formatCurrency(person.total / data.companyWorkDays)}</span>
-                                  )}
-                                </div>
-                                {person.waterQualityCount > 0 && (
-                                  <div style={{ fontSize: '0.7rem', color: '#06b6d4', marginTop: '0.25rem' }}>
-                                    💧 WQ: {formatCurrency(person.waterQualityTotal)} ({person.waterQualityPercentage.toFixed(1)}%) • {person.waterQualityCount} {person.waterQualityCount === 1 ? 'sale' : 'sales'}
-                                  </div>
-                                )}
-                                {person.airQualityCount > 0 && (
-                                  <div style={{ fontSize: '0.7rem', color: '#a78bfa', marginTop: '0.25rem' }}>
-                                    🌪️  AQ: {formatCurrency(person.airQualityTotal)} ({person.airQualityPercentage.toFixed(1)}%) • {person.airQualityCount} {person.airQualityCount === 1 ? 'sale' : 'sales'}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Total */}
-                            <div style={{ textAlign: 'right' }}>
-                              <div
-                                style={{
-                                  fontSize: '1.125rem',
-                                  fontWeight: '600',
-                                  color: departmentColors[dept.department] || '#94a3b8',
-                                }}
-                              >
-                                {formatCurrency(person.total)}
-                              </div>
-                              {data.companyWorkDays > 0 && (
-                                <div style={{ fontSize: '0.625rem', color: '#94a3b8', marginTop: '0.125rem' }}>
-                                  {formatCurrency(person.total / data.companyWorkDays)}/day
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
+        {/* Top Performers */}
+        <div className={styles.performersSection}>
+          <TopPerformers
+            departments={data.departments}
+            workDays={data.companyWorkDays}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -11,4 +11,50 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent overscroll bounce on iOS */
+  overscroll-behavior-y: none;
+  /* Smooth scrolling for better touch experience */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* Prevent text selection on mobile (except in inputs) */
+    -webkit-user-select: none;
+    user-select: none;
+    /* Remove tap highlight color */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Re-enable selection for inputs and text areas */
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* Prevent zoom on input focus (16px minimum font size) */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch-friendly tap targets - minimum 44x44px */
+button,
+a,
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Disable hover effects on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  *:hover {
+    /* Touch devices don't need hover effects */
+    /* Individual components can override this if needed */
+  }
 }

@@ -1,0 +1,120 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.dateInputs {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.input {
+  padding: 0.625rem 0.75rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #f1f5f9;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+  min-height: 44px;
+}
+
+.input:focus {
+  border-color: #3b82f6;
+}
+
+.refreshSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.refreshButton {
+  padding: 0.625rem 1.25rem;
+  background: #3b82f6;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.refreshButton:hover {
+  background: #2563eb;
+}
+
+.refreshButton:active {
+  transform: scale(0.98);
+}
+
+.lastUpdated {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Mobile adjustments */
+@media (max-width: 639px) {
+  .container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .dateInputs {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .inputGroup {
+    width: 100%;
+  }
+
+  .input {
+    width: 100%;
+  }
+
+  .refreshSection {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .refreshButton {
+    width: 100%;
+  }
+
+  .lastUpdated {
+    text-align: center;
+  }
+}
+
+/* Tablet */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .container {
+    justify-content: space-between;
+  }
+
+  .dateInputs {
+    flex: 1;
+  }
+}

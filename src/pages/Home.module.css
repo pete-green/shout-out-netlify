@@ -1,0 +1,189 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  min-height: calc(100vh - 80px);
+}
+
+.loading,
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #94a3b8;
+  font-size: 1.125rem;
+}
+
+.error h2 {
+  color: #f87171;
+  margin-bottom: 1rem;
+}
+
+.error p {
+  color: #94a3b8;
+  margin-bottom: 1.5rem;
+}
+
+.retryButton {
+  padding: 0.75rem 1.5rem;
+  background: #3b82f6;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.retryButton:hover {
+  background: #2563eb;
+}
+
+/* Header */
+.header {
+  margin-bottom: 2rem;
+}
+
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.dateInfo {
+  font-size: 1rem;
+  color: #94a3b8;
+}
+
+/* Company Metrics */
+.companyMetrics {
+  display: grid;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Section */
+.section {
+  margin-bottom: 2rem;
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 1.5rem;
+}
+
+/* Bottom Section */
+.bottomSection {
+  display: grid;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.leaderboardSection,
+.performersSection {
+  min-width: 0;
+}
+
+/* Mobile adjustments */
+@media (max-width: 639px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .header {
+    margin-bottom: 1.5rem;
+  }
+
+  .headerTop {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .dateInfo {
+    font-size: 0.875rem;
+  }
+
+  .companyMetrics {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .section {
+    margin-bottom: 1.5rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .bottomSection {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .container {
+    padding: 1.5rem;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .companyMetrics {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.375rem;
+  }
+
+  .bottomSection {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .companyMetrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .bottomSection {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Large desktop */
+@media (min-width: 1280px) {
+  .container {
+    padding: 2.5rem;
+  }
+}

@@ -1,0 +1,32 @@
+.card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hoverable {
+  cursor: pointer;
+}
+
+/* Only apply hover effects on devices with hover capability */
+@media (hover: hover) and (pointer: fine) {
+  .hoverable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Responsive padding */
+@media (max-width: 639px) {
+  .card {
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .card {
+    padding: 1.25rem;
+  }
+}

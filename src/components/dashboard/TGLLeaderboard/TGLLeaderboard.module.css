@@ -1,0 +1,136 @@
+.card {
+  height: 100%;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 1.5rem;
+}
+
+.leadersList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.leaderRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: rgba(51, 65, 85, 0.3);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.leaderRow.firstPlace {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Only apply hover on non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+  .leaderRow.hoverable:hover {
+    background: rgba(51, 65, 85, 0.5);
+    transform: translateX(4px);
+  }
+
+  .leaderRow.firstPlace.hoverable:hover {
+    background: rgba(16, 185, 129, 0.25);
+  }
+}
+
+.rank {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #94a3b8;
+  min-width: 40px;
+  text-align: center;
+}
+
+.leaderInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.leaderName {
+  font-weight: 600;
+  color: #f1f5f9;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.department {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.tglCount {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.tglPerDay {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* Mobile adjustments */
+@media (max-width: 639px) {
+  .title {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .leaderRow {
+    gap: 0.75rem;
+    padding: 0.5rem;
+  }
+
+  .rank {
+    font-size: 1rem;
+    min-width: 32px;
+  }
+
+  .leaderName {
+    font-size: 0.875rem;
+  }
+
+  .department {
+    font-size: 0.75rem;
+  }
+
+  .tglCount {
+    font-size: 0.875rem;
+  }
+
+  .tglPerDay {
+    font-size: 0.625rem;
+  }
+}
+
+/* Tablet */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .title {
+    font-size: 1.125rem;
+  }
+
+  .leaderRow {
+    gap: 0.875rem;
+  }
+}

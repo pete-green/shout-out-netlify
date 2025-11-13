@@ -1,0 +1,54 @@
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.initials {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+/* Size variants */
+.small {
+  width: 40px;
+  height: 40px;
+  font-size: 0.875rem;
+}
+
+.medium {
+  width: 50px;
+  height: 50px;
+  font-size: 1rem;
+}
+
+.large {
+  width: 60px;
+  height: 60px;
+  font-size: 1.125rem;
+}
+
+/* Mobile adjustments */
+@media (max-width: 639px) {
+  .small {
+    width: 36px;
+    height: 36px;
+    font-size: 0.75rem;
+  }
+
+  .medium {
+    width: 44px;
+    height: 44px;
+    font-size: 0.875rem;
+  }
+
+  .large {
+    width: 50px;
+    height: 50px;
+    font-size: 1rem;
+  }
+}

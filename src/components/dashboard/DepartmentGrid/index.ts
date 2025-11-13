@@ -1,0 +1,1 @@
+export { DepartmentGrid } from './DepartmentGrid';

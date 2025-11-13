@@ -1,0 +1,81 @@
+.card {
+  height: 100%;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 1.5rem;
+}
+
+.mainMetrics {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.crossSaleSection {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #334155;
+}
+
+.crossSaleTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.crossSaleMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+/* Mobile adjustments */
+@media (max-width: 639px) {
+  .title {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .mainMetrics {
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .crossSaleSection {
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+
+  .crossSaleTitle {
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .crossSaleMetrics {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .title {
+    font-size: 1.125rem;
+  }
+
+  .crossSaleMetrics {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .crossSaleMetrics {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

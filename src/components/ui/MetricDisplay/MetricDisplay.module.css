@@ -1,0 +1,74 @@
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.label {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.value {
+  color: #f1f5f9;
+  font-weight: 700;
+}
+
+/* Size variants */
+.small .label {
+  font-size: 0.75rem;
+}
+
+.small .value {
+  font-size: 1rem;
+}
+
+.medium .label {
+  font-size: 0.875rem;
+}
+
+.medium .value {
+  font-size: 1.5rem;
+}
+
+.large .label {
+  font-size: 1rem;
+}
+
+.large .value {
+  font-size: 2rem;
+}
+
+/* Mobile adjustments */
+@media (max-width: 639px) {
+  .small .label {
+    font-size: 0.625rem;
+  }
+
+  .small .value {
+    font-size: 0.875rem;
+  }
+
+  .medium .label {
+    font-size: 0.75rem;
+  }
+
+  .medium .value {
+    font-size: 1.125rem;
+  }
+
+  .large .label {
+    font-size: 0.875rem;
+  }
+
+  .large .value {
+    font-size: 1.5rem;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .large .value {
+    font-size: 1.75rem;
+  }
+}

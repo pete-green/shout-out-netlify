@@ -1,0 +1,1 @@
+export { DepartmentCard } from './DepartmentCard';
