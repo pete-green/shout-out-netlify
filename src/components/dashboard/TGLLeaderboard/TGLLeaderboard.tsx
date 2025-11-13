@@ -13,13 +13,25 @@ interface TGLLeaderboardProps {
 export function TGLLeaderboard({ leaders, workDays }: TGLLeaderboardProps) {
   const { isTouchDevice } = useDeviceType();
 
+  // Calculate ranks with tie handling
+  const leadersWithRank = leaders.map((leader, index) => {
+    let rank = 1;
+    // Count how many people have higher TGL counts
+    for (let i = 0; i < index; i++) {
+      if (leaders[i].tglCount > leader.tglCount) {
+        rank++;
+      }
+    }
+    return { ...leader, rank };
+  });
+
   return (
     <Card className={styles.card}>
       <h3 className={styles.title}>TGL Leaderboard</h3>
       <div className={styles.leadersList}>
-        {leaders.map((leader, index) => {
+        {leadersWithRank.map((leader, index) => {
           const tglsPerWorkDay = workDays > 0 ? leader.tglCount / workDays : 0;
-          const isFirstPlace = index === 0;
+          const isFirstPlace = leader.rank === 1;
 
           return (
             <div
@@ -27,7 +39,7 @@ export function TGLLeaderboard({ leaders, workDays }: TGLLeaderboardProps) {
               className={`${styles.leaderRow} ${isFirstPlace ? styles.firstPlace : ''} ${!isTouchDevice ? styles.hoverable : ''}`.trim()}
             >
               <div className={styles.rank}>
-                {isFirstPlace ? '🏆' : `#${index + 1}`}
+                {isFirstPlace ? '🏆' : `#${leader.rank}`}
               </div>
 
               <Avatar
