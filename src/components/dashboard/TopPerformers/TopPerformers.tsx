@@ -153,14 +153,14 @@ export function TopPerformers({ departments, workDays }: TopPerformersProps) {
                           {/* Water Quality */}
                           {person.waterQualityCount > 0 && (
                             <div className={styles.crossSale} style={{ color: WATER_QUALITY_COLOR }}>
-                              💧 WQ: {formatCurrency(person.waterQualityTotal)} ({person.waterQualityPercentage.toFixed(1)}%)
+                              💧 WQ: {formatCurrency(person.waterQualityTotal)} ({person.waterQualityPercentage.toFixed(1)}%) • {person.waterQualityCount} {person.waterQualityCount === 1 ? 'sale' : 'sales'}
                             </div>
                           )}
 
                           {/* Air Quality */}
                           {person.airQualityCount > 0 && (
                             <div className={styles.crossSale} style={{ color: AIR_QUALITY_COLOR }}>
-                              🌪️  AQ: {formatCurrency(person.airQualityTotal)} ({person.airQualityPercentage.toFixed(1)}%)
+                              🌪️  AQ: {formatCurrency(person.airQualityTotal)} ({person.airQualityPercentage.toFixed(1)}%) • {person.airQualityCount} {person.airQualityCount === 1 ? 'sale' : 'sales'}
                             </div>
                           )}
                         </div>
