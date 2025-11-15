@@ -532,15 +532,25 @@ export const handler: Handler = async (event, _context) => {
 
     console.log(`⚙️  Settings: Threshold=$${BIG_SALE_THRESHOLD}, TGL="${TGL_OPTION_NAME}"`);
 
+    // Configuration for handling ServiceTitan API delays
+    const LOOKBACK_BUFFER_MINUTES = 30; // Catch API delays (5-20 min typical)
+    const CACHE_SIZE = 500; // Holds ~6 poll cycles × ~80 estimates
+
     const lastPollTimestamp = settingsMap.last_poll_timestamp as string;
     console.log(`📅 Last poll timestamp: ${lastPollTimestamp}`);
 
-    let recentlyProcessedIds = (settingsMap.recently_processed_ids as string[]) || [];
-    console.log(`🔍 Recently processed IDs: ${recentlyProcessedIds.length}`);
+    // Add lookback buffer to catch delayed estimates from ServiceTitan API
+    const bufferTimestamp = new Date(
+      new Date(lastPollTimestamp).getTime() - LOOKBACK_BUFFER_MINUTES * 60000
+    ).toISOString();
+    console.log(`🔙 Using ${LOOKBACK_BUFFER_MINUTES}-minute lookback buffer: ${bufferTimestamp}`);
 
-    // 2. Query ServiceTitan API
+    let recentlyProcessedIds = (settingsMap.recently_processed_ids as string[]) || [];
+    console.log(`🔍 Recently processed IDs in cache: ${recentlyProcessedIds.length}`);
+
+    // 2. Query ServiceTitan API with lookback buffer
     console.log('📡 Querying ServiceTitan API...');
-    const estimates: Estimate[] = await getSoldEstimates(lastPollTimestamp);
+    const estimates: Estimate[] = await getSoldEstimates(bufferTimestamp);
     console.log(`✅ Found ${estimates.length} estimates`);
 
     let estimatesProcessed = 0;
@@ -684,8 +694,8 @@ export const handler: Handler = async (event, _context) => {
       })
       .eq('key', 'last_poll_timestamp');
 
-    // Update recently_processed_ids (keep last 50)
-    const updatedProcessedIds = [...newlyProcessedIds, ...recentlyProcessedIds].slice(0, 50);
+    // Update recently_processed_ids (keep last CACHE_SIZE to handle lookback buffer)
+    const updatedProcessedIds = [...newlyProcessedIds, ...recentlyProcessedIds].slice(0, CACHE_SIZE);
     await supabase
       .from('app_state')
       .update({
