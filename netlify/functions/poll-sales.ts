@@ -534,7 +534,7 @@ export const handler: Handler = async (event, _context) => {
     console.log(`⚙️  Settings: Threshold=$${BIG_SALE_THRESHOLD}, TGL="${TGL_OPTION_NAME}"`);
 
     // Configuration for handling ServiceTitan API delays
-    const LOOKBACK_BUFFER_MINUTES = 120; // TEMPORARY: Extended to catch missed 7:29 PM sale
+    const LOOKBACK_BUFFER_MINUTES = 30; // Catch API delays (5-20 min typical)
     const CACHE_SIZE = 500; // Holds ~6 poll cycles × ~80 estimates
 
     const lastPollTimestamp = settingsMap.last_poll_timestamp as string;
