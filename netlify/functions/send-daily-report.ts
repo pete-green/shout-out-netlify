@@ -293,10 +293,21 @@ function calculateTotal(byDept: SalesByDepartment): number {
 
 /**
  * Calculate work days in a date range (excluding weekends and holidays)
- * Now uses the call-board API to fetch holidays
+ * Uses the Supabase non_work_days table for consistency with dashboard
  */
 async function calculateWorkDays(startDate: string, endDate: string): Promise<number> {
-  return await calculateWorkDaysFromHolidays(startDate, endDate);
+  const { data, error } = await supabase.rpc('calculate_work_days', {
+    p_start_date: startDate,
+    p_end_date: endDate
+  });
+
+  if (error) {
+    console.error('Error calculating work days from Supabase:', error);
+    // Fallback to external API if Supabase fails
+    return await calculateWorkDaysFromHolidays(startDate, endDate);
+  }
+
+  return data || 0;
 }
 
 /**
