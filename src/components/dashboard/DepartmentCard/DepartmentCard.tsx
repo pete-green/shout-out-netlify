@@ -35,6 +35,8 @@ export function DepartmentCard({
   const borderColor = DEPARTMENT_COLORS[department] || DEPARTMENT_COLORS['Other'];
   const hasWaterQuality = waterQualityCount != null && waterQualityCount > 0 && (waterQualityTotal ?? 0) > 0;
   const hasAirQuality = airQualityCount != null && airQualityCount > 0 && (airQualityTotal ?? 0) > 0;
+  const waterQualityPercent = total > 0 ? ((waterQualityTotal ?? 0) / total) * 100 : 0;
+  const airQualityPercent = total > 0 ? ((airQualityTotal ?? 0) / total) * 100 : 0;
 
   return (
     <Card
@@ -91,6 +93,12 @@ export function DepartmentCard({
               color={WATER_QUALITY_COLOR}
               size="small"
             />
+            <MetricDisplay
+              label="% of Dept"
+              value={`${waterQualityPercent.toFixed(1)}%`}
+              color={WATER_QUALITY_COLOR}
+              size="small"
+            />
           </div>
         </div>
       )}
@@ -117,6 +125,12 @@ export function DepartmentCard({
             <MetricDisplay
               label="Average"
               value={formatCurrency(airQualityAverage || 0)}
+              color={AIR_QUALITY_COLOR}
+              size="small"
+            />
+            <MetricDisplay
+              label="% of Dept"
+              value={`${airQualityPercent.toFixed(1)}%`}
               color={AIR_QUALITY_COLOR}
               size="small"
             />
