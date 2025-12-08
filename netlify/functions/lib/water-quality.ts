@@ -183,7 +183,7 @@ export async function calculateCrossSaleMetrics(estimate: any): Promise<{
         total: itemTotal,
         quantity,
       });
-    } else if (crossSaleGroup === 'AIR QUALITY') {
+    } else if (crossSaleGroup === 'AIR QUALITY' || crossSaleGroup === 'HUMIDIFIERS') {
       airQualityAmount += itemTotal;
       airQualityItemCount++;
 
