@@ -48,3 +48,8 @@
 # 7pm EST / midnight UTC
 [functions."daily-report-7pm"]
   schedule = "0 0 * * 2-6"
+
+# Catchup poll: Runs hourly with 6-hour lookback to catch missed estimates
+# This catches any sales that slipped through due to ServiceTitan API indexing delays
+[functions."catchup-poll"]
+  schedule = "30 * * * *"
