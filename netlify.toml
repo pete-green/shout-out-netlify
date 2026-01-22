@@ -51,5 +51,6 @@
 
 # Catchup poll: Runs hourly with 6-hour lookback to catch missed estimates
 # This catches any sales that slipped through due to ServiceTitan API indexing delays
+# NOTE: Runs at :17 to avoid overlap with poll-sales (every 5 min) which caused duplicate notifications
 [functions."catchup-poll"]
-  schedule = "30 * * * *"
+  schedule = "17 * * * *"
