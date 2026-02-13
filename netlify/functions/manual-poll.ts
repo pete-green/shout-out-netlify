@@ -1,6 +1,7 @@
 import { Handler, HandlerResponse } from '@netlify/functions';
 import { supabase } from './lib/supabase';
 import { getSoldEstimates, getTechnician, getCustomer } from './lib/servicetitan';
+import { sendToWebhooks, hasCelebrationBeenSent } from './lib/webhooks';
 
 /**
  * Create response with CORS headers
@@ -61,111 +62,7 @@ function getPronouns(gender: string | null): { subjective: string; possessive: s
   }
 }
 
-/**
- * Send celebration message to webhooks
- */
-async function sendToWebhooks(
-  message: string,
-  gifUrl: string,
-  celebrationType: 'tgl' | 'big_sale',
-  estimateId: string
-) {
-  // Fetch active webhooks that match this celebration type
-  const { data: webhooks } = await supabase
-    .from('webhooks')
-    .select('id, url')
-    .contains('tags', [celebrationType])
-    .eq('is_active', true);
-
-  if (!webhooks || webhooks.length === 0) {
-    console.log(`⚠️ No active webhooks configured for ${celebrationType}`);
-    return;
-  }
-
-  // Send to each webhook
-  for (const webhook of webhooks) {
-    try {
-      const payload = {
-        cardsV2: [
-          {
-            cardId: `celebration-${estimateId}`,
-            card: {
-              sections: [
-                {
-                  widgets: [
-                    {
-                      textParagraph: {
-                        text: message,
-                      },
-                    },
-                  ],
-                },
-                {
-                  widgets: [
-                    {
-                      image: {
-                        imageUrl: gifUrl,
-                        altText: `${celebrationType} celebration`,
-                        onClick: {
-                          openLink: {
-                            url: gifUrl,
-                          },
-                        },
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-        ],
-      };
-
-      const response = await fetch(webhook.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        console.log(`✅ Sent ${celebrationType} to webhook ${webhook.id}`);
-
-        // Log successful delivery
-        await supabase.from('webhook_logs').insert({
-          webhook_id: webhook.id,
-          celebration_type: celebrationType,
-          status: 'success',
-          estimate_id: estimateId,
-        });
-      } else {
-        const errorText = await response.text();
-        console.error(`❌ Failed to send to webhook ${webhook.id}: ${response.status}`);
-
-        // Log failed delivery
-        await supabase.from('webhook_logs').insert({
-          webhook_id: webhook.id,
-          celebration_type: celebrationType,
-          status: 'failed',
-          error_message: `HTTP ${response.status}: ${errorText}`,
-          estimate_id: estimateId,
-        });
-      }
-    } catch (error: any) {
-      console.error(`❌ Error sending to webhook ${webhook.id}:`, error.message);
-
-      // Log error
-      await supabase.from('webhook_logs').insert({
-        webhook_id: webhook.id,
-        celebration_type: celebrationType,
-        status: 'failed',
-        error_message: error.message,
-        estimate_id: estimateId,
-      });
-    }
-  }
-}
+// sendToWebhooks imported from ./lib/webhooks — single source of truth with built-in dedup
 
 /**
  * Weighted random selection based on recency
@@ -613,16 +510,8 @@ export const handler: Handler = async (event, _context) => {
 
           // Send TGL celebration if applicable
           if (isTGL) {
-            // Dedup check: skip if we already sent this celebration
-            const { data: existingTglLogs } = await supabase
-              .from('webhook_logs')
-              .select('id')
-              .eq('estimate_id', estimateId)
-              .eq('celebration_type', 'tgl')
-              .eq('status', 'success')
-              .limit(1);
-
-            if (existingTglLogs && existingTglLogs.length > 0) {
+            // Dedup check: skip if ANY webhook_log exists (pending, success, or failed)
+            if (await hasCelebrationBeenSent(estimateId, 'tgl')) {
               console.log(`⏭️ TGL celebration already sent for estimate ${estimateId}, skipping duplicate`);
             } else {
               const { message, gifUrl, type } = await generateMessage(
@@ -655,16 +544,8 @@ export const handler: Handler = async (event, _context) => {
 
           // Send Big Sale celebration if applicable
           if (isBigSale) {
-            // Dedup check: skip if we already sent this celebration
-            const { data: existingBigSaleLogs } = await supabase
-              .from('webhook_logs')
-              .select('id')
-              .eq('estimate_id', estimateId)
-              .eq('celebration_type', 'big_sale')
-              .eq('status', 'success')
-              .limit(1);
-
-            if (existingBigSaleLogs && existingBigSaleLogs.length > 0) {
+            // Dedup check: skip if ANY webhook_log exists (pending, success, or failed)
+            if (await hasCelebrationBeenSent(estimateId, 'big_sale')) {
               console.log(`⏭️ Big Sale celebration already sent for estimate ${estimateId}, skipping duplicate`);
             } else {
               const { message, gifUrl, type } = await generateMessage(

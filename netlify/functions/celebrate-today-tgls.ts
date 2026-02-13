@@ -1,5 +1,6 @@
 import { Handler, HandlerResponse } from '@netlify/functions';
 import { supabase } from './lib/supabase';
+import { sendToWebhooks, hasCelebrationBeenSent } from './lib/webhooks';
 
 /**
  * Celebrate Today's TGLs Function
@@ -33,107 +34,6 @@ function getPronouns(gender: string | null): { subjective: string; possessive: s
       return { subjective: 'she', possessive: 'her', objective: 'her', contraction: "she's" };
     default:
       return { subjective: 'they', possessive: 'their', objective: 'them', contraction: "they've" };
-  }
-}
-
-/**
- * Send celebration message to webhooks
- */
-async function sendToWebhooks(
-  message: string,
-  gifUrl: string,
-  celebrationType: 'tgl' | 'big_sale',
-  estimateId: string
-) {
-  const { data: webhooks } = await supabase
-    .from('webhooks')
-    .select('id, url')
-    .contains('tags', [celebrationType])
-    .eq('is_active', true);
-
-  if (!webhooks || webhooks.length === 0) {
-    console.log(`⚠️ No active webhooks configured for ${celebrationType}`);
-    return;
-  }
-
-  for (const webhook of webhooks) {
-    try {
-      const payload = {
-        cardsV2: [
-          {
-            cardId: `celebration-${estimateId}`,
-            card: {
-              sections: [
-                {
-                  widgets: [
-                    {
-                      textParagraph: {
-                        text: message,
-                      },
-                    },
-                  ],
-                },
-                {
-                  widgets: [
-                    {
-                      image: {
-                        imageUrl: gifUrl,
-                        altText: `${celebrationType} celebration`,
-                        onClick: {
-                          openLink: {
-                            url: gifUrl,
-                          },
-                        },
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-        ],
-      };
-
-      const response = await fetch(webhook.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        console.log(`✅ Sent ${celebrationType} to webhook ${webhook.id}`);
-
-        await supabase.from('webhook_logs').insert({
-          webhook_id: webhook.id,
-          celebration_type: celebrationType,
-          status: 'success',
-          estimate_id: estimateId,
-        });
-      } else {
-        const errorText = await response.text();
-        console.error(`❌ Failed to send to webhook ${webhook.id}: ${response.status}`);
-
-        await supabase.from('webhook_logs').insert({
-          webhook_id: webhook.id,
-          celebration_type: celebrationType,
-          status: 'failed',
-          error_message: `HTTP ${response.status}: ${errorText}`,
-          estimate_id: estimateId,
-        });
-      }
-    } catch (error: any) {
-      console.error(`❌ Error sending to webhook ${webhook.id}:`, error.message);
-
-      await supabase.from('webhook_logs').insert({
-        webhook_id: webhook.id,
-        celebration_type: celebrationType,
-        status: 'failed',
-        error_message: error.message,
-        estimate_id: estimateId,
-      });
-    }
   }
 }
 
@@ -438,15 +338,11 @@ export const handler: Handler = async (event, _context) => {
         console.log(`   Amount: $${tgl.amount}`);
         console.log(`   Customer: ${tgl.customer_name}`);
 
-        // Check if we've already sent a TGL notification for this estimate
-        const { data: existingNotifications } = await supabase
-          .from('notifications')
-          .select('id')
-          .eq('estimate_id', tgl.id)
-          .eq('type', 'tgl');
-
-        if (existingNotifications && existingNotifications.length > 0) {
-          console.log(`   ⏭️  Already celebrated - skipping`);
+        // Dedup check: use webhook_logs (same mechanism as poll-sales/catchup-poll)
+        // This replaces the old notifications-only check which used a different table
+        // and could miss celebrations sent by the poll functions
+        if (await hasCelebrationBeenSent(estimateId, 'tgl')) {
+          console.log(`   ⏭️  Already celebrated (found in webhook_logs) - skipping`);
           continue;
         }
 
@@ -457,7 +353,7 @@ export const handler: Handler = async (event, _context) => {
           tgl.customer_name
         );
 
-        // Send to webhooks
+        // Send to webhooks (shared module has its own per-webhook dedup)
         await sendToWebhooks(message, gifUrl, type, estimateId);
 
         // Insert notification record
