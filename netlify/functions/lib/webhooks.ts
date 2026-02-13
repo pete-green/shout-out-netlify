@@ -1,9 +1,9 @@
 import { supabase } from './supabase';
 
 /**
- * Check if a celebration has already been sent (or is in-progress) for an estimate.
- * Checks for ANY webhook_log status (pending, success, failed) to prevent race conditions.
- * A record existing in any state means another function is handling or has handled this celebration.
+ * Check if a celebration has already been sent for an estimate.
+ * Checks for ANY webhook_log status (success or failed) to prevent race conditions.
+ * A record existing in any state means another function has handled this celebration.
  */
 export async function hasCelebrationBeenSent(
   estimateId: string,
@@ -11,12 +11,16 @@ export async function hasCelebrationBeenSent(
 ): Promise<boolean> {
   const { data } = await supabase
     .from('webhook_logs')
-    .select('id')
+    .select('id, status')
     .eq('estimate_id', estimateId)
     .eq('celebration_type', celebrationType)
     .limit(1);
 
-  return !!(data && data.length > 0);
+  if (data && data.length > 0) {
+    console.log(`🔒 hasCelebrationBeenSent: TRUE for estimate ${estimateId} type=${celebrationType} (existing log id=${data[0].id} status=${data[0].status})`);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -24,12 +28,11 @@ export async function hasCelebrationBeenSent(
  *
  * For each webhook:
  * 1. Check if a webhook_log already exists (any status) -> skip if so
- * 2. Insert a 'pending' webhook_log BEFORE sending (claims the send)
- * 3. Send to Google Chat
- * 4. Update webhook_log to 'success' or 'failed'
+ * 2. Send to Google Chat
+ * 3. Log result to webhook_logs
  *
- * This ensures that even if two functions race, the second one will see
- * the 'pending' record inserted by the first and skip.
+ * The per-webhook check inside this function acts as a second dedup layer
+ * (callers should also use hasCelebrationBeenSent before message generation).
  */
 export async function sendToWebhooks(
   message: string,
@@ -49,8 +52,6 @@ export async function sendToWebhooks(
   }
 
   for (const webhook of webhooks) {
-    let claimRecordId: string | null = null;
-
     try {
       // Dedup: check if ANY log already exists for this webhook + estimate + type
       const { data: existingLog } = await supabase
@@ -65,25 +66,6 @@ export async function sendToWebhooks(
         console.log(`⏭️ webhook_log already exists for estimate ${estimateId}, webhook ${webhook.id} — skipping`);
         continue;
       }
-
-      // Claim: insert 'pending' record BEFORE sending to narrow the race window
-      const { data: claimRecord, error: claimError } = await supabase
-        .from('webhook_logs')
-        .insert({
-          webhook_id: webhook.id,
-          celebration_type: celebrationType,
-          status: 'pending',
-          estimate_id: estimateId,
-        })
-        .select()
-        .single();
-
-      if (claimError) {
-        console.error(`❌ Failed to claim webhook send for estimate ${estimateId}:`, claimError);
-        continue;
-      }
-
-      claimRecordId = claimRecord.id;
 
       // Send to Google Chat
       const payload = {
@@ -132,33 +114,32 @@ export async function sendToWebhooks(
 
       if (response.ok) {
         console.log(`✅ Sent ${celebrationType} to webhook ${webhook.id}`);
-        await supabase
-          .from('webhook_logs')
-          .update({ status: 'success' })
-          .eq('id', claimRecordId);
+        await supabase.from('webhook_logs').insert({
+          webhook_id: webhook.id,
+          celebration_type: celebrationType,
+          status: 'success',
+          estimate_id: estimateId,
+        });
       } else {
         const errorText = await response.text();
         console.error(`❌ Failed to send to webhook ${webhook.id}: ${response.status}`);
-        await supabase
-          .from('webhook_logs')
-          .update({
-            status: 'failed',
-            error_message: `HTTP ${response.status}: ${errorText}`,
-          })
-          .eq('id', claimRecordId);
+        await supabase.from('webhook_logs').insert({
+          webhook_id: webhook.id,
+          celebration_type: celebrationType,
+          status: 'failed',
+          error_message: `HTTP ${response.status}: ${errorText}`,
+          estimate_id: estimateId,
+        });
       }
     } catch (error: any) {
       console.error(`❌ Error sending to webhook ${webhook.id}:`, error.message);
-
-      if (claimRecordId) {
-        await supabase
-          .from('webhook_logs')
-          .update({
-            status: 'failed',
-            error_message: error.message,
-          })
-          .eq('id', claimRecordId);
-      }
+      await supabase.from('webhook_logs').insert({
+        webhook_id: webhook.id,
+        celebration_type: celebrationType,
+        status: 'failed',
+        error_message: error.message,
+        estimate_id: estimateId,
+      });
     }
   }
 }
