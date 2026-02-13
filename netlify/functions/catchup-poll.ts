@@ -450,15 +450,6 @@ export const handler: Handler = async (event, _context) => {
     const estimates: Estimate[] = await getSoldEstimates(lookbackTimestamp);
     console.log(`✅ Found ${estimates.length} estimates in the last ${CATCHUP_LOOKBACK_HOURS} hours`);
 
-    // Also check estimates table to see what we already have
-    const { data: existingEstimates } = await supabase
-      .from('estimates')
-      .select('estimate_id')
-      .gte('sold_at', lookbackTimestamp);
-
-    const existingEstimateIds = new Set((existingEstimates || []).map(e => e.estimate_id));
-    console.log(`📊 Already have ${existingEstimateIds.size} estimates in database from this period`);
-
     let estimatesProcessed = 0;
     let missedEstimatesCaught = 0;
     const newlyProcessedIds: string[] = [];
@@ -471,8 +462,15 @@ export const handler: Handler = async (event, _context) => {
         continue;
       }
 
-      // Skip if already in database
-      if (existingEstimateIds.has(estimateId)) {
+      // Fresh DB check for each estimate (not stale bulk query from start)
+      // This prevents race condition where poll-sales inserted after our bulk query
+      const { data: existingEstimate } = await supabase
+        .from('estimates')
+        .select('estimate_id')
+        .eq('estimate_id', estimateId)
+        .limit(1);
+
+      if (existingEstimate && existingEstimate.length > 0) {
         continue;
       }
 
@@ -556,45 +554,71 @@ export const handler: Handler = async (event, _context) => {
         // Send celebrations for TGL and/or Big Sales
         if (isTGL || isBigSale) {
           if (isTGL) {
-            const { message, gifUrl, type } = await generateMessage(
-              salesperson,
-              amount,
-              customerName,
-              true
-            );
+            // Dedup check: skip if we already sent this celebration (prevents race with poll-sales)
+            const { data: existingTglLogs } = await supabase
+              .from('webhook_logs')
+              .select('id')
+              .eq('estimate_id', estimateId)
+              .eq('celebration_type', 'tgl')
+              .eq('status', 'success')
+              .limit(1);
 
-            await sendToWebhooks(message, gifUrl, type, estimateId);
+            if (existingTglLogs && existingTglLogs.length > 0) {
+              console.log(`⏭️ TGL celebration already sent for estimate ${estimateId}, skipping duplicate`);
+            } else {
+              const { message, gifUrl, type } = await generateMessage(
+                salesperson,
+                amount,
+                customerName,
+                true
+              );
 
-            await supabase.from('notifications').insert({
-              estimate_id: insertedEstimate.id,
-              type,
-              message,
-              gif_url: gifUrl,
-              posted_successfully: false,
-            });
+              await sendToWebhooks(message, gifUrl, type, estimateId);
 
-            console.log(`🎉 Sent TGL celebration for MISSED estimate ${estimateId}`);
+              await supabase.from('notifications').insert({
+                estimate_id: insertedEstimate.id,
+                type,
+                message,
+                gif_url: gifUrl,
+                posted_successfully: false,
+              });
+
+              console.log(`🎉 Sent TGL celebration for MISSED estimate ${estimateId}`);
+            }
           }
 
           if (isBigSale) {
-            const { message, gifUrl, type } = await generateMessage(
-              salesperson,
-              amount,
-              customerName,
-              false
-            );
+            // Dedup check: skip if we already sent this celebration (prevents race with poll-sales)
+            const { data: existingBigSaleLogs } = await supabase
+              .from('webhook_logs')
+              .select('id')
+              .eq('estimate_id', estimateId)
+              .eq('celebration_type', 'big_sale')
+              .eq('status', 'success')
+              .limit(1);
 
-            await sendToWebhooks(message, gifUrl, type, estimateId);
+            if (existingBigSaleLogs && existingBigSaleLogs.length > 0) {
+              console.log(`⏭️ Big Sale celebration already sent for estimate ${estimateId}, skipping duplicate`);
+            } else {
+              const { message, gifUrl, type } = await generateMessage(
+                salesperson,
+                amount,
+                customerName,
+                false
+              );
 
-            await supabase.from('notifications').insert({
-              estimate_id: insertedEstimate.id,
-              type,
-              message,
-              gif_url: gifUrl,
-              posted_successfully: false,
-            });
+              await sendToWebhooks(message, gifUrl, type, estimateId);
 
-            console.log(`🎉 Sent Big Sale celebration for MISSED estimate ${estimateId}`);
+              await supabase.from('notifications').insert({
+                estimate_id: insertedEstimate.id,
+                type,
+                message,
+                gif_url: gifUrl,
+                posted_successfully: false,
+              });
+
+              console.log(`🎉 Sent Big Sale celebration for MISSED estimate ${estimateId}`);
+            }
           }
         }
 

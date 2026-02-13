@@ -613,60 +613,86 @@ export const handler: Handler = async (event, _context) => {
 
           // Send TGL celebration if applicable
           if (isTGL) {
-            const { message, gifUrl, type } = await generateMessage(
-              salesperson,
-              amount,
-              customerName,
-              true // TGL celebration
-            );
+            // Dedup check: skip if we already sent this celebration
+            const { data: existingTglLogs } = await supabase
+              .from('webhook_logs')
+              .select('id')
+              .eq('estimate_id', estimateId)
+              .eq('celebration_type', 'tgl')
+              .eq('status', 'success')
+              .limit(1);
 
-            // Send to webhooks
-            await sendToWebhooks(message, gifUrl, type, estimateId);
+            if (existingTglLogs && existingTglLogs.length > 0) {
+              console.log(`⏭️ TGL celebration already sent for estimate ${estimateId}, skipping duplicate`);
+            } else {
+              const { message, gifUrl, type } = await generateMessage(
+                salesperson,
+                amount,
+                customerName,
+                true // TGL celebration
+              );
 
-            // Insert notification
-            const { error: notificationError } = await supabase.from('notifications').insert({
-              estimate_id: insertedEstimate.id,
-              type,
-              message,
-              gif_url: gifUrl,
-              posted_successfully: false,
-            });
+              // Send to webhooks
+              await sendToWebhooks(message, gifUrl, type, estimateId);
 
-            if (notificationError) {
-              console.error(`❌ Failed to insert TGL notification:`, notificationError);
+              // Insert notification
+              const { error: notificationError } = await supabase.from('notifications').insert({
+                estimate_id: insertedEstimate.id,
+                type,
+                message,
+                gif_url: gifUrl,
+                posted_successfully: false,
+              });
+
+              if (notificationError) {
+                console.error(`❌ Failed to insert TGL notification:`, notificationError);
+              }
+
+              celebrationCount++;
+              console.log(`🎉 Sent TGL celebration for estimate ${estimateId}`);
             }
-
-            celebrationCount++;
-            console.log(`🎉 Sent TGL celebration for estimate ${estimateId}`);
           }
 
           // Send Big Sale celebration if applicable
           if (isBigSale) {
-            const { message, gifUrl, type } = await generateMessage(
-              salesperson,
-              amount,
-              customerName,
-              false // Big Sale celebration
-            );
+            // Dedup check: skip if we already sent this celebration
+            const { data: existingBigSaleLogs } = await supabase
+              .from('webhook_logs')
+              .select('id')
+              .eq('estimate_id', estimateId)
+              .eq('celebration_type', 'big_sale')
+              .eq('status', 'success')
+              .limit(1);
 
-            // Send to webhooks
-            await sendToWebhooks(message, gifUrl, type, estimateId);
+            if (existingBigSaleLogs && existingBigSaleLogs.length > 0) {
+              console.log(`⏭️ Big Sale celebration already sent for estimate ${estimateId}, skipping duplicate`);
+            } else {
+              const { message, gifUrl, type } = await generateMessage(
+                salesperson,
+                amount,
+                customerName,
+                false // Big Sale celebration
+              );
 
-            // Insert notification
-            const { error: notificationError } = await supabase.from('notifications').insert({
-              estimate_id: insertedEstimate.id,
-              type,
-              message,
-              gif_url: gifUrl,
-              posted_successfully: false,
-            });
+              // Send to webhooks
+              await sendToWebhooks(message, gifUrl, type, estimateId);
 
-            if (notificationError) {
-              console.error(`❌ Failed to insert Big Sale notification:`, notificationError);
+              // Insert notification
+              const { error: notificationError } = await supabase.from('notifications').insert({
+                estimate_id: insertedEstimate.id,
+                type,
+                message,
+                gif_url: gifUrl,
+                posted_successfully: false,
+              });
+
+              if (notificationError) {
+                console.error(`❌ Failed to insert Big Sale notification:`, notificationError);
+              }
+
+              celebrationCount++;
+              console.log(`🎉 Sent Big Sale celebration for estimate ${estimateId}`);
             }
-
-            celebrationCount++;
-            console.log(`🎉 Sent Big Sale celebration for estimate ${estimateId}`);
           }
 
           console.log(`✨ Total celebrations sent: ${celebrationCount}`);
