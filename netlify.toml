@@ -21,7 +21,9 @@
 [functions."poll-sales"]
   schedule = "*/5 * * * *"
 
-# sync-salespeople: Syncs salespeople daily at 2 AM UTC (configured via Netlify UI)
+# sync-salespeople: Syncs salespeople daily at 2 AM UTC (9 PM EST)
+[functions."sync-salespeople"]
+  schedule = "0 2 * * *"
 
 # send-daily-report: Sends sales reports at specific times Monday-Friday
 # Times are in UTC, configured for EST (Eastern Standard Time, UTC-5)
