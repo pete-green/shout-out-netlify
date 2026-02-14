@@ -33,67 +33,80 @@ export const handler: Handler = async (_event, _context) => {
 
     console.log(`✅ Fetched ${allTechnicians.length} technicians from ServiceTitan`);
 
+    // Fetch all existing technician_ids in one query
+    const { data: existingPeople, error: fetchError } = await supabase
+      .from('salespeople')
+      .select('technician_id')
+      .limit(10000);
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch existing salespeople: ${fetchError.message}`);
+    }
+
+    const existingIds = new Set((existingPeople || []).map(p => p.technician_id));
+    console.log(`✅ Found ${existingIds.size} existing salespeople in database`);
+
+    const now = new Date().toISOString();
+
+    // Split into new vs existing
+    const newRecords: any[] = [];
+    const updateRecords: any[] = [];
+
+    for (const tech of allTechnicians) {
+      const record = {
+        technician_id: tech.id,
+        name: tech.name || `Technician #${tech.id}`,
+        email: tech.email || null,
+        phone: tech.phone || tech.mobileNumber || null,
+        st_active: tech.active !== undefined ? tech.active : true,
+        raw_data: tech,
+        last_synced_at: now,
+      };
+
+      if (existingIds.has(tech.id)) {
+        updateRecords.push(record);
+      } else {
+        newRecords.push({ ...record, is_active: true });
+      }
+    }
+
     let syncedCount = 0;
     let errorCount = 0;
 
-    // Upsert each technician into the database
-    for (const tech of allTechnicians) {
-      try {
-        const technicianId = tech.id;
-        const name = tech.name || `Technician #${technicianId}`;
-        const email = tech.email || null;
-        const phone = tech.phone || tech.mobileNumber || null;
-        const stActive = tech.active !== undefined ? tech.active : true;
+    // Batch insert new records
+    if (newRecords.length > 0) {
+      const { error: insertError } = await supabase
+        .from('salespeople')
+        .insert(newRecords);
 
-        // Check if technician already exists
-        const { data: existing } = await supabase
-          .from('salespeople')
-          .select('id, business_unit, headshot_url, is_active')
-          .eq('technician_id', technicianId)
-          .single();
+      if (insertError) {
+        console.error('❌ Error inserting new salespeople:', insertError.message);
+        errorCount += newRecords.length;
+      } else {
+        syncedCount += newRecords.length;
+        console.log(`➕ Inserted ${newRecords.length} new salespeople: ${newRecords.map(r => r.name).join(', ')}`);
+      }
+    }
 
-        if (existing) {
-          // Update existing record (preserve user-set fields)
-          await supabase
-            .from('salespeople')
-            .update({
-              name,
-              email,
-              phone,
-              st_active: stActive,
-              raw_data: tech,
-              last_synced_at: new Date().toISOString(),
-            })
-            .eq('technician_id', technicianId);
+    // Batch upsert existing records (preserves user-set fields like business_unit, headshot_url, gender, is_active)
+    if (updateRecords.length > 0) {
+      const { error: upsertError } = await supabase
+        .from('salespeople')
+        .upsert(updateRecords, { onConflict: 'technician_id' });
 
-          console.log(`🔄 Updated technician ${technicianId}: ${name}`);
-        } else {
-          // Insert new record
-          await supabase.from('salespeople').insert({
-            technician_id: technicianId,
-            name,
-            email,
-            phone,
-            st_active: stActive,
-            is_active: true, // Default to active for new salespeople
-            raw_data: tech,
-            last_synced_at: new Date().toISOString(),
-          });
-
-          console.log(`➕ Added new technician ${technicianId}: ${name}`);
-        }
-
-        syncedCount++;
-      } catch (error: any) {
-        console.error(`❌ Error syncing technician ${tech.id}:`, error.message);
-        errorCount++;
+      if (upsertError) {
+        console.error('❌ Error updating existing salespeople:', upsertError.message);
+        errorCount += updateRecords.length;
+      } else {
+        syncedCount += updateRecords.length;
+        console.log(`🔄 Updated ${updateRecords.length} existing salespeople`);
       }
     }
 
     const duration = Date.now() - startTime;
 
     console.log(
-      `✅ Sync completed: ${syncedCount} synced, ${errorCount} errors in ${duration}ms`
+      `✅ Sync completed: ${syncedCount} synced (${newRecords.length} new, ${updateRecords.length} updated), ${errorCount} errors in ${duration}ms`
     );
 
     return {
@@ -102,6 +115,8 @@ export const handler: Handler = async (_event, _context) => {
         success: true,
         totalFetched: allTechnicians.length,
         synced: syncedCount,
+        new: newRecords.length,
+        updated: updateRecords.length,
         errors: errorCount,
         durationMs: duration,
       }),
