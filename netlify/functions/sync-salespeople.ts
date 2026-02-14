@@ -52,10 +52,18 @@ export const handler: Handler = async (_event, _context) => {
     const newRecords: any[] = [];
     const updateRecords: any[] = [];
 
+    let skippedCount = 0;
+
     for (const tech of allTechnicians) {
+      // Skip technicians with no name — these are junk records from ServiceTitan
+      if (!tech.name || !tech.name.trim()) {
+        skippedCount++;
+        continue;
+      }
+
       const record = {
         technician_id: tech.id,
-        name: tech.name || `Technician #${tech.id}`,
+        name: tech.name,
         email: tech.email || null,
         phone: tech.phone || tech.mobileNumber || null,
         st_active: tech.active !== undefined ? tech.active : true,
@@ -68,6 +76,10 @@ export const handler: Handler = async (_event, _context) => {
       } else {
         newRecords.push({ ...record, is_active: true });
       }
+    }
+
+    if (skippedCount > 0) {
+      console.log(`⏩ Skipped ${skippedCount} technicians with no name`);
     }
 
     let syncedCount = 0;
