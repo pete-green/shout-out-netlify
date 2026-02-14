@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useIsMobile } from '../hooks/useDeviceType'
+import mobileStyles from './PeopleMobile.module.css'
 
 const BUSINESS_UNITS = [
   'Plumbing Service',
@@ -43,6 +45,7 @@ type SortField = 'name' | 'email' | 'business_unit' | 'is_active'
 type SortDirection = 'asc' | 'desc'
 
 function People() {
+  const isMobile = useIsMobile()
   const [salespeople, setSalespeople] = useState<Salesperson[]>([])
   const [filteredPeople, setFilteredPeople] = useState<Salesperson[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,6 +69,9 @@ function People() {
   const [showUnassigned, setShowUnassigned] = useState(true)
   const [visibleUnits, setVisibleUnits] = useState<Set<string>>(new Set(SALES_UNITS))
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
+
+  // Mobile sort dropdown
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false)
 
   // Fetch salespeople on mount
   useEffect(() => {
@@ -214,6 +220,353 @@ function People() {
   }
 
   const unassignedCount = salespeople.filter((p) => !p.business_unit).length
+
+  const sortFieldLabels: Record<SortField, string> = {
+    name: 'Name',
+    email: 'Email',
+    business_unit: 'Business Unit',
+    is_active: 'Active',
+  }
+
+  if (isMobile) {
+    return (
+      <div className={mobileStyles.container}>
+        {/* Header */}
+        <div className={mobileStyles.header}>
+          <h2 className={mobileStyles.title}>People Management</h2>
+          {unassignedCount > 0 && (
+            <p className={mobileStyles.unassignedWarning}>
+              ⚠️ {unassignedCount} {unassignedCount === 1 ? 'person' : 'people'} without business unit
+            </p>
+          )}
+          <button
+            onClick={syncSalespeople}
+            disabled={syncing}
+            className={mobileStyles.syncButton}
+          >
+            {syncing ? 'Syncing...' : '🔄 Sync from ServiceTitan'}
+          </button>
+        </div>
+
+        {error && <div className={mobileStyles.error}>Error: {error}</div>}
+
+        {/* Filter + Sort controls */}
+        <div className={mobileStyles.controls}>
+          <button
+            className={mobileStyles.filterButton}
+            onClick={() => setFilterDropdownOpen(true)}
+          >
+            Filter ({visibleUnits.size + (showUnassigned ? 1 : 0)}/{BUSINESS_UNITS.length + 1})
+          </button>
+
+          <div className={mobileStyles.sortDropdownWrap}>
+            <button
+              className={mobileStyles.sortButton}
+              onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+            >
+              Sort: {sortFieldLabels[sortField]} {sortDirection === 'asc' ? '↑' : '↓'}
+            </button>
+            {sortDropdownOpen && (
+              <div className={mobileStyles.sortDropdown}>
+                {(Object.keys(sortFieldLabels) as SortField[]).map((field) => (
+                  <button
+                    key={field}
+                    className={`${mobileStyles.sortOption} ${sortField === field ? mobileStyles.sortOptionActive : ''}`}
+                    onClick={() => {
+                      handleSort(field)
+                      setSortDropdownOpen(false)
+                    }}
+                  >
+                    {sortFieldLabels[field]} {sortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Card list */}
+        <div className={mobileStyles.cardList}>
+          {filteredPeople.map((person) => {
+            const isEditing = editingId === person.id
+            return (
+              <div key={person.id} className={mobileStyles.card}>
+                <div className={mobileStyles.cardTop}>
+                  {person.headshot_url ? (
+                    <img
+                      src={person.headshot_url}
+                      alt={person.name}
+                      className={mobileStyles.avatar}
+                      onClick={() => {
+                        setPhotoModalUrl(person.headshot_url)
+                        setPhotoModalName(person.name)
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Ccircle cx="20" cy="20" r="20" fill="%23334155"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%2394a3b8" font-size="18"%3E' +
+                          person.name.charAt(0).toUpperCase() +
+                          '%3C/text%3E%3C/svg%3E'
+                      }}
+                    />
+                  ) : (
+                    <div className={mobileStyles.avatarPlaceholder}>
+                      {person.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className={mobileStyles.cardInfo}>
+                    <div className={mobileStyles.cardName}>{person.name}</div>
+                    <div className={mobileStyles.cardTechId}>ID: {person.technician_id}</div>
+                    <div className={mobileStyles.cardEmail}>
+                      {person.email || <span className={mobileStyles.cardDash}>—</span>}
+                    </div>
+                  </div>
+                  {!isEditing && (
+                    <button
+                      className={mobileStyles.editButton}
+                      onClick={() => startEdit(person)}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+
+                <div className={mobileStyles.cardMeta}>
+                  {person.business_unit ? (
+                    <span className={mobileStyles.businessUnit}>{person.business_unit}</span>
+                  ) : (
+                    <span className={mobileStyles.businessUnitUnset}>Not set</span>
+                  )}
+                  <span
+                    className={`${mobileStyles.activeBadge} ${
+                      person.is_active ? mobileStyles.badgeActive : mobileStyles.badgeInactive
+                    }`}
+                  >
+                    {person.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                {/* Inline edit form */}
+                {isEditing && (
+                  <div className={mobileStyles.editForm}>
+                    <div className={mobileStyles.editField}>
+                      <label>Business Unit</label>
+                      <select
+                        value={editForm.business_unit}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, business_unit: e.target.value })
+                        }
+                      >
+                        <option value="">Select...</option>
+                        {BUSINESS_UNITS.map((unit) => (
+                          <option key={unit} value={unit}>{unit}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={mobileStyles.editField}>
+                      <label>Headshot URL</label>
+                      <input
+                        type="text"
+                        value={editForm.headshot_url}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, headshot_url: e.target.value })
+                        }
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div className={mobileStyles.editField}>
+                      <label>Gender</label>
+                      <select
+                        value={editForm.gender}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, gender: e.target.value })
+                        }
+                      >
+                        <option value="">Select...</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                        <option value="Prefer not to say">Prefer not to say</option>
+                      </select>
+                    </div>
+                    <div className={mobileStyles.editToggleRow}>
+                      <span className={mobileStyles.editToggleLabel}>Active</span>
+                      <input
+                        type="checkbox"
+                        checked={editForm.is_active}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, is_active: e.target.checked })
+                        }
+                        className={mobileStyles.editToggle}
+                      />
+                    </div>
+                    <div className={mobileStyles.editActions}>
+                      <button
+                        className={mobileStyles.saveButton}
+                        onClick={() => saveEdit(person.id)}
+                      >
+                        Save
+                      </button>
+                      <button
+                        className={mobileStyles.cancelButton}
+                        onClick={cancelEdit}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {filteredPeople.length === 0 && (
+          <div className={mobileStyles.emptyState}>
+            {salespeople.length === 0
+              ? 'No people found. Tap "Sync from ServiceTitan" to import.'
+              : 'No people match the current filters.'}
+          </div>
+        )}
+
+        <div className={mobileStyles.countFooter}>
+          Showing {filteredPeople.length} of {salespeople.length} people
+        </div>
+
+        {/* Bottom sheet filter */}
+        {filterDropdownOpen && (
+          <>
+            <div
+              className={mobileStyles.backdrop}
+              onClick={() => setFilterDropdownOpen(false)}
+            />
+            <div className={mobileStyles.bottomSheet}>
+              <div className={mobileStyles.sheetHandle} />
+              <div className={mobileStyles.sheetHeader}>
+                <h3 className={mobileStyles.sheetTitle}>Filter Business Units</h3>
+                <button
+                  className={mobileStyles.sheetClose}
+                  onClick={() => setFilterDropdownOpen(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <div className={mobileStyles.sheetBody}>
+                <label className={mobileStyles.sheetRow}>
+                  <input
+                    type="checkbox"
+                    checked={showUnassigned}
+                    onChange={(e) => setShowUnassigned(e.target.checked)}
+                    className={mobileStyles.sheetCheckbox}
+                  />
+                  <span className={showUnassigned ? mobileStyles.sheetLabelChecked : mobileStyles.sheetLabelUnchecked}>
+                    Unassigned ({unassignedCount})
+                  </span>
+                </label>
+                <hr className={mobileStyles.sheetDivider} />
+                {BUSINESS_UNITS.map((unit) => (
+                  <label key={unit} className={mobileStyles.sheetRow}>
+                    <input
+                      type="checkbox"
+                      checked={visibleUnits.has(unit)}
+                      onChange={() => toggleBusinessUnit(unit)}
+                      className={mobileStyles.sheetCheckbox}
+                    />
+                    <span className={visibleUnits.has(unit) ? mobileStyles.sheetLabelChecked : mobileStyles.sheetLabelUnchecked}>
+                      {unit}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <button
+                className={mobileStyles.sheetDone}
+                onClick={() => setFilterDropdownOpen(false)}
+              >
+                Done
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Photo Modal — shared with desktop */}
+        {photoModalUrl && (
+          <div
+            onClick={() => setPhotoModalUrl(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              cursor: 'pointer',
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: 'relative',
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+            >
+              <div style={{
+                marginBottom: '1rem',
+                padding: '0.5rem 1rem',
+                backgroundColor: '#1e293b',
+                borderRadius: '0.5rem',
+                border: '1px solid #475569',
+              }}>
+                <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '1.25rem' }}>
+                  {photoModalName}
+                </h3>
+              </div>
+              <img
+                src={photoModalUrl}
+                alt={photoModalName}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '80vh',
+                  borderRadius: '0.5rem',
+                  border: '3px solid #3b82f6',
+                  boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+                }}
+              />
+              <button
+                onClick={() => setPhotoModalUrl(null)}
+                style={{
+                  position: 'absolute',
+                  top: '-1rem',
+                  right: '-1rem',
+                  width: '3rem',
+                  height: '3rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  fontSize: '1.5rem',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                }}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
